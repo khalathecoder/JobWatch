@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}JobWatch — Login{% endblock %}
+{% block extra_styles %}
+<style>
+  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .login-wrap {
+    width: 360px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px 36px;
+  }
+  .login-logo {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .login-logo span { color: var(--accent); }
+  .login-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 32px;
+    font-family: var(--mono);
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+    font-family: var(--mono);
+  }
+  .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-group input:focus { border-color: var(--accent); }
+  .error {
+    background: #3a1010;
+    border: 1px solid #6a2020;
+    color: var(--rejected);
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .login-btn {
+    width: 100%;
+    padding: 11px;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius);
+    color: #fff;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.15s;
+  }
+  .login-btn:hover { background: var(--accent2); }
+  .lock-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <div class="lock-icon">🔒</div>
+  <div class="login-logo">Job<span>Watch</span></div>
+  <div class="login-sub">Private access only</div>
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% endif %}
+  <form method="POST">
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" name="username" autocomplete="username" autofocus required>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="login-btn">Sign In</button>
+  </form>
+</div>
+{% endblock %}

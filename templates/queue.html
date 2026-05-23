@@ -1,0 +1,403 @@
+{% extends 'base.html' %}
+{% block title %}JobWatch — Review Queue{% endblock %}
+{% block extra_styles %}
+<style>
+  .queue-wrap { max-width: 900px; margin: 0 auto; padding: 28px 24px; }
+
+  .queue-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .queue-header h1 { font-size: 20px; font-weight: 600; }
+  .queue-header p  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+  .queue-section { margin-bottom: 32px; }
+  .queue-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .queue-section-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-family: var(--mono);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .queue-count {
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-family: var(--mono);
+  }
+
+  /* Company cards */
+  .company-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    transition: border-color 0.15s;
+  }
+  .company-card:hover { border-color: var(--accent); }
+  .company-card.deciding { opacity: 0.5; pointer-events: none; }
+
+  .company-card-body { flex: 1; }
+  .company-name { font-size: 16px; font-weight: 600; color: var(--text); }
+  .company-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .meta-tag {
+    font-size: 11px;
+    font-family: var(--mono);
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .company-why {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--card);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+  }
+
+  /* Job cards */
+  .job-queue-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 10px;
+    transition: border-color 0.15s;
+  }
+  .job-queue-card:hover { border-color: var(--accent); }
+  .job-queue-card.deciding { opacity: 0.5; pointer-events: none; }
+
+  .job-queue-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 10px; }
+  .job-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .job-company-name { font-size: 13px; color: var(--accent); margin-top: 2px; }
+
+  /* Score bar */
+  .score-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+  .score-num {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1;
+  }
+  .score-10 { color: var(--new); }
+  .score-high { color: var(--new); }
+  .score-mid  { color: var(--saved); }
+  .score-low  { color: var(--rejected); }
+  .score-bar-track {
+    width: 80px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .score-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+  .score-reasoning {
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+    margin-bottom: 10px;
+  }
+
+  .flags-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .flag {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .flag-green  { background: #1a3a22; color: var(--new);      border: 1px solid #2a5a32; }
+  .flag-yellow { background: #3a2f10; color: var(--saved);    border: 1px solid #5a4a20; }
+  .flag-red    { background: #3a1010; color: var(--rejected); border: 1px solid #6a2020; }
+
+  /* Action buttons */
+  .card-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn-approve {
+    padding: 7px 18px;
+    background: #1a3a22;
+    border: 1px solid var(--new);
+    color: var(--new);
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-approve:hover { background: var(--new); color: #0B0F14; }
+  .btn-reject {
+    padding: 7px 18px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-reject:hover { border-color: var(--rejected); color: var(--rejected); }
+
+  .reject-reason {
+    padding: 5px 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 12px;
+    outline: none;
+    display: none;
+  }
+  .reject-reason.show { display: block; }
+
+  .empty-queue {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+  }
+  .empty-queue .icon { font-size: 32px; margin-bottom: 10px; }
+
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="topbar">
+  <div class="topbar-brand">Job<span>Watch</span> — Review Queue</div>
+  <div class="topbar-actions">
+    {% if stats.pending_companies == 0 and stats.pending_jobs == 0 %}
+    <button class="btn btn-primary btn-sm" onclick="triggerSuggest()">✨ Get Suggestions</button>
+    {% endif %}
+    <button class="btn btn-sm" onclick="triggerScan()">⟳ Scan Jobs</button>
+    <a href="/dashboard" class="btn btn-sm">Dashboard</a>
+    <a href="/settings"  class="btn btn-sm">⚙ Settings</a>
+    <a href="/logout"    class="btn btn-sm">Sign out</a>
+  </div>
+</div>
+
+<div class="queue-wrap">
+  <div class="queue-header">
+    <div>
+      <h1>Review Queue</h1>
+      <p>Approve what looks good. Reject what doesn't — Claude learns your preferences over time.</p>
+    </div>
+  </div>
+
+  <!-- Company Suggestions -->
+  <div class="queue-section">
+    <div class="queue-section-header">
+      <div class="queue-section-title">
+        🏢 Company Suggestions
+        {% if pending_companies %}
+        <span class="queue-count">{{ pending_companies|length }}</span>
+        {% endif %}
+      </div>
+      <button class="btn btn-sm" onclick="triggerSuggest()">✨ Refresh Suggestions</button>
+    </div>
+
+    {% if pending_companies %}
+      {% for co in pending_companies %}
+      <div class="company-card" id="co-{{ co.id }}">
+        <div class="company-card-body">
+          <div class="company-name">{{ co.name }}</div>
+          <div class="company-meta">
+            {% if co.sector %}<span class="meta-tag">{{ co.sector.replace('_',' ') }}</span>{% endif %}
+            {% if co.ats_type %}<span class="meta-tag">{{ co.ats_type }}</span>{% endif %}
+            {% if co.hq_location %}<span class="meta-tag">📍 {{ co.hq_location }}</span>{% endif %}
+          </div>
+          {% if co.why_suggested %}
+          <div class="company-why">{{ co.why_suggested }}</div>
+          {% endif %}
+          <div class="card-actions" style="margin-top:12px">
+            <button class="btn-approve" onclick="approveCompany({{ co.id }})">✓ Add to Tracker</button>
+            <button class="btn-reject"  onclick="showRejectCo({{ co.id }})">✕ Skip</button>
+            <select class="reject-reason" id="co-reason-{{ co.id }}"
+                    onchange="rejectCompany({{ co.id }}, this.value)">
+              <option value="">Why skip?</option>
+              <option value="mssp_staffing">MSSP / Staffing agency</option>
+              <option value="wrong_sector">Wrong sector</option>
+              <option value="clearance">Requires clearance</option>
+              <option value="no_remote">Not remote friendly</option>
+              <option value="low_pay">Known for low pay</option>
+              <option value="not_interested">Just not interested</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-queue">
+        <div class="icon">🏢</div>
+        <p>No company suggestions pending.</p>
+        <button class="btn btn-primary btn-sm" onclick="triggerSuggest()">✨ Ask Claude for Suggestions</button>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Job Approvals -->
+  <div class="queue-section">
+    <div class="queue-section-header">
+      <div class="queue-section-title">
+        💼 Job Approvals
+        {% if pending_jobs %}
+        <span class="queue-count">{{ pending_jobs|length }}</span>
+        {% endif %}
+      </div>
+      <button class="btn btn-sm" onclick="triggerScan()">⟳ Scan for New Jobs</button>
+    </div>
+
+    {% if pending_jobs %}
+      {% for job in pending_jobs %}
+      {% set score = job.score %}
+      {% set score_class = 'score-high' if score >= 8 else ('score-mid' if score >= 6 else 'score-low') %}
+      {% set bar_color = '#3FB950' if score >= 8 else ('#E3B341' if score >= 6 else '#F85149') %}
+
+      <div class="job-queue-card" id="job-{{ job.id }}">
+        <div class="job-queue-top">
+          <div>
+            <div class="job-title">{{ job.title }}</div>
+            <div class="job-company-name">{{ job.company }}</div>
+            {% if job.location %}
+            <div style="font-size:12px; color:var(--muted); margin-top:3px; font-family:var(--mono)">
+              📍 {{ job.location }}
+            </div>
+            {% endif %}
+          </div>
+          <div class="score-wrap">
+            <div class="score-num {{ score_class }}">{{ score }}<span style="font-size:13px; color:var(--muted)">/10</span></div>
+            <div class="score-bar-track">
+              <div class="score-bar-fill" style="width:{{ score * 10 }}%; background:{{ bar_color }}"></div>
+            </div>
+          </div>
+        </div>
+
+        {% if job.score_reasoning %}
+        <div class="score-reasoning">{{ job.score_reasoning }}</div>
+        {% endif %}
+
+        <!-- Flags -->
+        {% set green  = job.green_flags  | fromjson if job.green_flags  else [] %}
+        {% set yellow = job.yellow_flags | fromjson if job.yellow_flags else [] %}
+        {% set red    = job.red_flags    | fromjson if job.red_flags    else [] %}
+        {% if green or yellow or red %}
+        <div class="flags-row">
+          {% for f in green  %}<span class="flag flag-green">✓ {{ f }}</span>{% endfor %}
+          {% for f in yellow %}<span class="flag flag-yellow">⚠ {{ f }}</span>{% endfor %}
+          {% for f in red    %}<span class="flag flag-red">✕ {{ f }}</span>{% endfor %}
+        </div>
+        {% endif %}
+
+        {% if job.keywords %}
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px">
+          {% for kw in job.keywords.split(', ') %}
+          <span style="font-size:11px; font-family:var(--mono); background:var(--card);
+                       border:1px solid var(--border); color:var(--muted); padding:2px 8px; border-radius:4px">
+            {{ kw }}
+          </span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="card-actions">
+          <a href="{{ job.url }}" target="_blank" class="btn btn-sm">View Listing ↗</a>
+          <button class="btn-approve" onclick="approveJob({{ job.id }})">✓ Add to Dashboard</button>
+          <button class="btn-reject"  onclick="showRejectJob({{ job.id }})">✕ Skip</button>
+          <select class="reject-reason" id="job-reason-{{ job.id }}"
+                  onchange="rejectJob({{ job.id }}, this.value)">
+            <option value="">Why skip?</option>
+            <option value="too_senior">Too senior / years required</option>
+            <option value="consulting">Consulting / agency / MSSP</option>
+            <option value="travel">Travel required</option>
+            <option value="clearance">Clearance required</option>
+            <option value="wrong_role">Wrong role type</option>
+            <option value="not_remote">Not remote</option>
+            <option value="low_pay">Likely low pay</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-queue">
+        <div class="icon">💼</div>
+        <p>No jobs pending review. Run a scan to pull fresh listings.</p>
+        <button class="btn btn-primary btn-sm" onclick="triggerScan()">⟳ Scan All Companies</button>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(msg, d=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), d);
+}
+
+function approveCompany(id) {
+  document.getElementById('co-' + id).classList.add('deciding');
+  fetch('/api/approve_company', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})})
+    .then(() => { document.getElementById('co-' + id).remove(); showToast('Company added to tracker ✓'); });
+}
+function showRejectCo(id) {
+  document.getElementById('co-reason-' + id).classList.toggle('show');
+}
+function rejectCompany(id, reason) {
+  if (!reason) return;
+  document.getElementById('co-' + id).classList.add('deciding');
+  fetch('/api/reject_company', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, reason})})
+    .then(() => { document.getElementById('co-' + id).remove(); showToast('Skipped — Claude noted that'); });
+}
+
+function approveJob(id) {
+  document.getElementById('job-' + id).classList.add('deciding');
+  fetch('/api/approve_job', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})})
+    .then(() => { document.getElementById('job-' + id).remove(); showToast('Added to dashboard ✓'); });
+}
+function showRejectJob(id) {
+  document.getElementById('job-reason-' + id).classList.toggle('show');
+}
+function rejectJob(id, reason) {
+  if (!reason) return;
+  document.getElementById('job-' + id).classList.add('deciding');
+  fetch('/api/reject_job', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, reason})})
+    .then(() => { document.getElementById('job-' + id).remove(); showToast('Skipped — Claude will learn from this'); });
+}
+
+function triggerSuggest() {
+  showToast('Claude is generating company suggestions...', 5000);
+  fetch('/api/suggest', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' })
+    .then(() => setTimeout(() => location.reload(), 8000));
+}
+function triggerScan() {
+  showToast('Scanning companies for new jobs...', 5000);
+  fetch('/api/scan', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' })
+    .then(() => setTimeout(() => location.reload(), 12000));
+}
+</script>
+{% endblock %}

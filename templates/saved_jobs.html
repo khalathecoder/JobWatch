@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% block title %}JobWatch — Saved Jobs{% endblock %}
+{% block extra_styles %}
+<style>
+  .sj-wrap { max-width: 900px; margin: 0 auto; padding: 24px; }
+  .sj-header { margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+  .sj-header h1 { font-size: 20px; font-weight: 600; }
+  .sj-header p { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  .sj-stats { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .sj-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 18px; }
+  .sj-stat .num { font-family: var(--mono); font-size: 22px; font-weight: 500; }
+  .sj-stat .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .sj-stat.urgent .num { color: var(--rejected); }
+  .sj-stat.fresh  .num { color: var(--new); }
+
+  .sj-filters { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .sj-filter { padding: 5px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; color: var(--muted); font-size: 12px; font-family: var(--mono); cursor: pointer; transition: all 0.15s; }
+  .sj-filter:hover { border-color: var(--accent); color: var(--accent); }
+  .sj-filter.active { background: var(--card); border-color: var(--accent); color: var(--text); }
+
+  .sj-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    transition: border-color 0.15s;
+  }
+  .sj-card:hover { border-color: var(--accent); }
+  .sj-card.stale { border-left: 3px solid var(--rejected); }
+  .sj-card.fresh { border-left: 3px solid var(--new); }
+  .sj-card.aging { border-left: 3px solid var(--saved); }
+
+  .sj-info { flex: 1; }
+  .sj-title { font-size: 15px; font-weight: 500; color: var(--text); }
+  .sj-company { font-size: 13px; color: var(--accent); font-family: var(--mono); margin-top: 2px; }
+  .sj-meta { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+  .sj-meta span { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .sj-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex-shrink: 0; }
+  .sj-age { font-size: 12px; font-family: var(--mono); padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+  .age-fire   { background: #3a1a00; color: #ff8c42; }
+  .age-fresh  { background: #1a3a22; color: var(--new); }
+  .age-recent { background: #3a2f10; color: var(--saved); }
+  .age-aging  { background: #3a1010; color: var(--rejected); }
+  .age-stale  { background: #1a1a2a; color: var(--muted); }
+
+  .sj-btn-row { display: flex; gap: 6px; }
+  .empty-state { text-align: center; padding: 60px; color: var(--muted); }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+  .nudge-banner {
+    background: #3a1010;
+    border: 1px solid #6a2020;
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nudge-banner p { font-size: 13px; color: var(--rejected); }
+  .nudge-banner span { font-size: 11px; color: var(--muted); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="topbar">
+  <div class="topbar-brand">Job<span>Watch</span> — Saved Jobs</div>
+  <div class="topbar-right">
+    <a href="/" class="btn btn-sm">← Dashboard</a>
+    <a href="/companies" class="btn btn-sm">🏢 Companies</a>
+    <a href="/logout" class="btn btn-sm">Sign out</a>
+  </div>
+</div>
+
+<div class="sj-wrap">
+  <div class="sj-header">
+    <div>
+      <h1>Saved from Web</h1>
+      <p>Jobs you saved via the Chrome extension. Apply or archive — don't let them go stale.</p>
+    </div>
+  </div>
+
+  {% set stale_count = saves | selectattr('is_stale') | selectattr('status', 'equalto', 'saved') | list | length %}
+  {% if stale_count > 0 %}
+  <div class="nudge-banner">
+    <p>⚠️ {{ stale_count }} job{{ 's' if stale_count > 1 }} going stale — apply or archive them</p>
+    <span>Saved 14+ days ago</span>
+  </div>
+  {% endif %}
+
+  <!-- Stats -->
+  <div class="sj-stats">
+    <div class="sj-stat fresh">
+      <div class="num">{{ saves | selectattr('status', 'equalto', 'saved') | selectattr('is_stale', 'equalto', false) | list | length }}</div>
+      <div class="lbl">🟢 Fresh</div>
+    </div>
+    <div class="sj-stat urgent">
+      <div class="num">{{ stale_count }}</div>
+      <div class="lbl">🔴 Stale</div>
+    </div>
+    <div class="sj-stat">
+      <div class="num">{{ saves | selectattr('status', 'equalto', 'applied') | list | length }}</div>
+      <div class="lbl">📤 Applied</div>
+    </div>
+    <div class="sj-stat">
+      <div class="num">{{ saves | length }}</div>
+      <div class="lbl">Total</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="sj-filters">
+    <span class="sj-filter active" onclick="filterSaves('all', this)">All</span>
+    <span class="sj-filter" onclick="filterSaves('saved', this)">Pending</span>
+    <span class="sj-filter" onclick="filterSaves('stale', this)">🔴 Stale</span>
+    <span class="sj-filter" onclick="filterSaves('applied', this)">Applied</span>
+    <span class="sj-filter" onclick="filterSaves('archived', this)">Archived</span>
+  </div>
+
+  <!-- Job cards -->
+  <div id="savesList">
+    {% if saves %}
+      {% for job in saves %}
+      {% if job.status != 'archived' %}
+      <div class="sj-card {% if job.is_stale %}stale{% elif job.age_class == 'age-fire' %}fresh{% elif job.age_class == 'age-fresh' %}fresh{% else %}aging{% endif %}"
+           id="sj-{{ job.id }}"
+           data-status="{{ job.status }}"
+           data-stale="{{ 'true' if job.is_stale else 'false' }}">
+        <div class="sj-info">
+          <div class="sj-title">{{ job.title or 'Untitled Job' }}</div>
+          <div class="sj-company">{{ job.company or 'Unknown Company' }}</div>
+          <div class="sj-meta">
+            <span>🕐 Saved {{ job.saved_at[:10] }}</span>
+            {% if job.url %}<span><a href="{{ job.url }}" target="_blank" style="color:var(--accent)">View listing ↗</a></span>{% endif %}
+          </div>
+        </div>
+        <div class="sj-actions">
+          <span class="sj-age {{ job.age_class }}">{{ job.age_emoji }} {{ job.age_label }}</span>
+          <div class="sj-btn-row">
+            {% if job.status == 'saved' %}
+            <button class="btn btn-sm btn-primary" onclick="updateSave({{ job.id }}, 'applied')">📤 Applied</button>
+            <button class="btn btn-sm" onclick="updateSave({{ job.id }}, 'archived')">Archive</button>
+            {% elif job.status == 'applied' %}
+            <span class="badge badge-applied">Applied</span>
+            <button class="btn btn-sm" onclick="updateSave({{ job.id }}, 'archived')">Archive</button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    {% else %}
+    <div class="empty-state">
+      <div class="icon">🔖</div>
+      <p>No saved jobs yet.</p>
+      <p style="font-size:12px; margin-top:8px">Use the <strong>＋</strong> button in the Chrome extension while browsing job listings.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function updateSave(id, status) {
+  fetch(`/api/web-saves/${id}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({status})
+  }).then(() => {
+    const card = document.getElementById('sj-' + id);
+    if (status === 'archived') {
+      card.style.opacity = '0';
+      card.style.transition = 'opacity 0.3s';
+      setTimeout(() => card.remove(), 300);
+      showToast('Archived');
+    } else if (status === 'applied') {
+      card.dataset.status = 'applied';
+      card.querySelector('.sj-btn-row').innerHTML =
+        `<span class="badge badge-applied">Applied</span>
+         <button class="btn btn-sm" onclick="updateSave(${id}, 'archived')">Archive</button>`;
+      showToast('✓ Marked as applied');
+    }
+  });
+}
+
+function filterSaves(filter, btn) {
+  document.querySelectorAll('.sj-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.sj-card').forEach(card => {
+    const status = card.dataset.status;
+    const stale  = card.dataset.stale === 'true';
+    if (filter === 'all')     card.style.display = '';
+    else if (filter === 'saved')    card.style.display = status === 'saved' ? '' : 'none';
+    else if (filter === 'stale')    card.style.display = (stale && status === 'saved') ? '' : 'none';
+    else if (filter === 'applied')  card.style.display = status === 'applied' ? '' : 'none';
+    else if (filter === 'archived') card.style.display = status === 'archived' ? '' : 'none';
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+{% endblock %}

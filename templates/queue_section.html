@@ -1,0 +1,287 @@
+{% if queue_counts.companies > 0 or queue_counts.jobs > 0 %}
+<div class="queue-wrap">
+
+  <div class="queue-header">
+    <div class="queue-title">
+      📬 Pending Review
+      {% if queue_counts.companies > 0 %}
+      <span class="q-badge">{{ queue_counts.companies }} companies</span>
+      {% endif %}
+      {% if queue_counts.jobs > 0 %}
+      <span class="q-badge q-badge-jobs">{{ queue_counts.jobs }} jobs</span>
+      {% endif %}
+    </div>
+    <button class="queue-toggle" onclick="toggleQueue(this)">▲ Collapse</button>
+  </div>
+
+  <div id="queueBody">
+
+    <!-- Company suggestions -->
+    {% if pending_companies %}
+    <div class="q-section">
+      <div class="q-section-label">Company Suggestions — Claude thinks you'd want to track these</div>
+      <div class="q-cards">
+        {% for c in pending_companies %}
+        <div class="q-card" id="co-{{ c.id }}">
+          <div class="q-card-top">
+            <div style="flex:1">
+              <div class="q-name">{{ c.name }}</div>
+              <div class="q-meta" style="margin-top:5px">
+                <span class="q-tag">{{ c.sector }}</span>
+                <span class="q-tag ats-tag ats-{{ c.ats_type|lower }}">{{ c.ats_type }}</span>
+                {% if c.hq %}<span class="q-tag">📍 {{ c.hq }}</span>{% endif %}
+                {% if c.verified %}<span class="q-tag verified-tag">✓ Verified</span>{% endif %}
+                {% if c.has_live_roles %}<span class="q-tag live-tag">🔥 Live security roles</span>{% endif %}
+              </div>
+            </div>
+          </div>
+          {% if c.why_suggested %}
+          <div class="q-why">{{ c.why_suggested }}</div>
+          {% endif %}
+          {% if c.sample_roles and c.sample_roles != '[]' %}
+          <div class="q-sample-roles">
+            <span class="q-roles-label">Current roles found:</span>
+            {% for role in c.sample_roles | from_json %}
+            <span class="q-role-tag">{{ role }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <div class="q-actions" style="margin-top:10px">
+            {% if c.careers_url %}
+            <a href="{{ c.careers_url }}" target="_blank" class="q-link">Careers Page ↗</a>
+            {% endif %}
+            <button class="q-approve" onclick="decideCompany({{ c.id }}, 'approve', this)">
+              ✓ Track & Scan Now
+            </button>
+            <button class="q-reject" onclick="decideCompany({{ c.id }}, 'reject')">✗ Skip</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Job queue -->
+    {% if pending_jobs %}
+    <div class="q-section">
+      <div class="q-section-label">Job Queue — approve to add to your dashboard</div>
+      <div class="q-cards">
+        {% for job in pending_jobs %}
+        <div class="q-card" id="jq-{{ job.id }}">
+          <div class="q-card-top">
+            <div style="flex:1">
+              <div class="q-name">{{ job.title }}</div>
+              <div class="q-company">{{ job.company }}</div>
+              <div class="q-meta" style="margin-top:6px">
+                {% if job.age_badge %}<span class="q-tag">{{ job.age_badge }}</span>{% endif %}
+                {% if job.location %}<span class="q-tag">📍 {{ job.location }}</span>{% endif %}
+              </div>
+            </div>
+            {% if job.score %}
+            <div class="q-score {% if job.score >= 8 %}score-high{% elif job.score >= 6 %}score-mid{% else %}score-low{% endif %}">
+              <div class="score-num">{{ job.score }}</div>
+              <div class="score-denom">/10</div>
+            </div>
+            {% else %}
+            <div class="q-score score-pending">
+              <div class="score-num">?</div>
+              <div class="score-denom">scoring</div>
+            </div>
+            {% endif %}
+          </div>
+          {% if job.score_reason %}
+          <div class="q-why">{{ job.score_reason }}</div>
+          {% endif %}
+          {% if job.keywords %}
+          <div class="q-keywords">
+            {% for kw in job.keywords.split(',') %}
+            <span class="kw-tag">{{ kw.strip() }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <div class="q-actions">
+            <a href="{{ job.url }}" target="_blank" class="q-link">Open Listing ↗</a>
+            <button class="q-approve" onclick="decideJob({{ job.id }}, 'approve')">✓ Add to Dashboard</button>
+            <button class="q-reject"  onclick="decideJob({{ job.id }}, 'reject')">✗ Not for Me</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endif %}
+
+<style>
+.queue-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.queue-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.queue-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.q-badge {
+  font-size: 11px;
+  font-family: var(--mono);
+  background: var(--accent);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.q-badge-jobs { background: var(--new); color: #000; }
+.queue-toggle {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--mono);
+}
+.queue-toggle:hover { color: var(--text); }
+
+.q-section { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.q-section:last-child { border-bottom: none; }
+.q-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-family: var(--mono);
+  margin-bottom: 12px;
+}
+.q-cards { display: flex; flex-direction: column; gap: 10px; }
+
+.q-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  transition: border-color 0.15s;
+}
+.q-card:hover { border-color: var(--accent); }
+.q-card-top { display: flex; align-items: flex-start; gap: 12px; }
+.q-name { font-size: 14px; font-weight: 500; color: var(--text); }
+.q-company { font-size: 12px; color: var(--accent); font-family: var(--mono); margin-top: 2px; }
+.q-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.q-tag { font-size: 11px; font-family: var(--mono); background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 2px 7px; border-radius: 4px; }
+.q-why { font-size: 12px; color: var(--muted); margin-top: 8px; font-style: italic; line-height: 1.5; }
+.q-keywords { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+
+.q-score {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid;
+}
+.score-high   { border-color: var(--new);    background: #1a3a22; color: var(--new); }
+.score-mid    { border-color: var(--saved);  background: #3a2f10; color: var(--saved); }
+.score-low    { border-color: var(--rejected); background: #3a1010; color: var(--rejected); }
+.score-pending { border-color: var(--border); background: var(--surface); color: var(--muted); }
+.score-num    { font-family: var(--mono); font-size: 18px; font-weight: 700; line-height: 1; }
+.score-denom  { font-family: var(--mono); font-size: 10px; opacity: 0.7; }
+
+.q-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.q-approve {
+  padding: 5px 14px; background: #1a3a22; border: 1px solid #2a5a32;
+  border-radius: 6px; color: var(--new); font-size: 12px; cursor: pointer;
+  font-family: var(--sans); transition: all 0.15s;
+}
+.q-approve:hover { background: #2a5a32; }
+.q-reject {
+  padding: 5px 14px; background: transparent; border: 1px solid var(--border);
+  border-radius: 6px; color: var(--muted); font-size: 12px; cursor: pointer;
+  font-family: var(--sans); transition: all 0.15s;
+}
+.q-reject:hover { border-color: var(--rejected); color: var(--rejected); }
+
+.q-sample-roles { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.q-roles-label { font-size: 10px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; }
+.q-role-tag { font-size: 11px; background: #1a3a22; border: 1px solid #2a5a32; color: var(--new); padding: 2px 8px; border-radius: 4px; font-family: var(--mono); }
+.verified-tag { background: #0f2a45; color: var(--applied); border-color: #1a4a70 !important; }
+.live-tag { background: #3a1a00; color: #ff8c42; border-color: #6a3010 !important; }
+.ats-workday    { background: #1a2a3a; color: #58a6ff; border-color: #2a4a6a !important; }
+.ats-icims      { background: #2a1a3a; color: #c084fc; border-color: #4a2a6a !important; }
+.ats-greenhouse { background: #1a3a22; color: var(--new); border-color: #2a5a32 !important; }
+.ats-taleo      { background: #3a2a10; color: var(--saved); border-color: #5a4a20 !important; }
+.ats-custom     { background: var(--card); color: var(--muted); }
+
+.q-link {
+  font-size: 12px; color: var(--accent); text-decoration: none;
+  padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px;
+}
+.q-link:hover { border-color: var(--accent); text-decoration: none; }
+</style>
+
+<script>
+function toggleQueue(btn) {
+  const body = document.getElementById('queueBody');
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  btn.textContent = collapsed ? '▲ Collapse' : '▼ Expand';
+}
+
+function decideCompany(id, decision, btn) {
+  if (btn && decision === 'approve') {
+    btn.textContent = '⟳ Adding & scanning...';
+    btn.disabled = true;
+  }
+  fetch('/api/queue/company', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({id, decision})
+  }).then(r => r.json()).then(data => {
+    const card = document.getElementById('co-' + id);
+    if (card) {
+      card.style.opacity = '0';
+      card.style.transform = 'translateX(20px)';
+      card.style.transition = 'all 0.3s';
+      setTimeout(() => card.remove(), 300);
+    }
+    if (decision === 'approve') {
+      showToast('✓ Added to tracker — scanning for jobs now...', 4000);
+    } else {
+      showToast('✗ Skipped');
+    }
+  });
+}
+
+function decideJob(id, decision) {
+  fetch('/api/queue/job', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({id, decision})
+  }).then(r => r.json()).then(data => {
+    const card = document.getElementById('jq-' + id);
+    if (card) {
+      card.style.opacity = '0';
+      card.style.transform = 'translateX(20px)';
+      card.style.transition = 'all 0.3s';
+      setTimeout(() => card.remove(), 300);
+    }
+    showToast(decision === 'approve' ? '✓ Job added to dashboard' : '✗ Skipped');
+  });
+}
+</script>
