@@ -417,6 +417,6 @@ if __name__ == '__main__':
     init_queue_tables()
     init_profile_tables()
     init_settings()
-    init_approved_companies()
+    # init_approved_companies() is not needed - table already created in init_db()
     print('\n  JobWatch → http://localhost:5050\n')
     app.run(debug=False, host='127.0.0.1', port=5050)
