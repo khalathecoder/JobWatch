@@ -114,8 +114,51 @@
     <form method="POST">
       <input type="hidden" name="action" value="info">
       <div class="form-grid">
-        {% for key, label in [('full_name','Full Name'),('email','Email'),('phone','Phone'),
-            ('location','Location'),('linkedin','LinkedIn URL'),('github','GitHub URL'),('website','Website')] %}
+        {% for key, label in [('full_name','Full Name'),('email','Email'),('phone','Phone')] %}
+        <div class="form-group">
+          <label>{{ label }}</label>
+          <input type="text" name="{{ key }}" value="{{ profile.info.get(key,'') }}">
+        </div>
+        {% endfor %}
+      </div>
+
+      <h3 style="font-size:12px; color:var(--accent); margin: 20px 0 10px; font-family:var(--sans); text-transform:uppercase;">Mailing Address</h3>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column: span 2;">
+          <label>Street Address</label>
+          <input type="text" name="address_street" value="{{ profile.info.get('address_street','') }}">
+        </div>
+        <div class="form-group">
+          <label>City</label>
+          <input type="text" name="address_city" value="{{ profile.info.get('address_city','') }}">
+        </div>
+        <div class="form-group" style="display:grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+          <div class="form-group">
+            <label>State</label>
+            <input type="text" name="address_state" value="{{ profile.info.get('address_state','') }}" placeholder="OH">
+          </div>
+          <div class="form-group">
+            <label>Zip Code</label>
+            <input type="text" name="address_zip" value="{{ profile.info.get('address_zip','') }}">
+          </div>
+        </div>
+      </div>
+
+      <h3 style="font-size:12px; color:var(--accent); margin: 20px 0 10px; font-family:var(--sans); text-transform:uppercase;">Career Portal Defaults</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Preferred Username</label>
+          <input type="text" name="pref_username" value="{{ profile.info.get('pref_username','') }}">
+        </div>
+        <div class="form-group">
+          <label>Password Hint / Suggestion</label>
+          <input type="text" name="pref_pw_hint" value="{{ profile.info.get('pref_pw_hint','') }}">
+        </div>
+      </div>
+
+      <h3 style="font-size:12px; color:var(--accent); margin: 20px 0 10px; font-family:var(--sans); text-transform:uppercase;">Online Profiles</h3>
+      <div class="form-grid">
+        {% for key, label in [('linkedin','LinkedIn URL'),('github','GitHub URL'),('website','Website')] %}
         <div class="form-group">
           <label>{{ label }}</label>
           <input type="text" name="{{ key }}" value="{{ profile.info.get(key,'') }}">

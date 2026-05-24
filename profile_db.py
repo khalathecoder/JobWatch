@@ -17,7 +17,8 @@ def init_profile_tables():
         );
         CREATE TABLE IF NOT EXISTS profile_summary (
             resume_version TEXT PRIMARY KEY,
-            summary        TEXT DEFAULT ''
+            summary        TEXT DEFAULT '',
+            passion_statement TEXT DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS experience (
             id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,7 +55,7 @@ def init_profile_tables():
         for k, v in PROFILE_INFO.items():
             conn.execute('INSERT OR IGNORE INTO profile_info (key, value) VALUES (?,?)', (k, v))
         for version, text in SUMMARIES.items():
-            conn.execute('INSERT OR IGNORE INTO profile_summary VALUES (?,?)', (version, text))
+            conn.execute('INSERT OR IGNORE INTO profile_summary (resume_version, summary) VALUES (?,?)', (version, text))
         for i, exp in enumerate(EXPERIENCE):
             conn.execute(
                 'INSERT INTO experience (resume_version, job_title, company, start_date, end_date, responsibilities, sort_order) VALUES (?,?,?,?,?,?,?)',
@@ -108,7 +109,7 @@ def save_profile_info(data: dict):
 
 def save_summary(version, text):
     conn = get_conn()
-    conn.execute('INSERT OR REPLACE INTO profile_summary VALUES (?,?)', (version, text))
+    conn.execute('INSERT OR REPLACE INTO profile_summary (resume_version, summary) VALUES (?,?)', (version, text))
     conn.commit()
     conn.close()
 

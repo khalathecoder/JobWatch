@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # Main Flask web app
+  app:
+    build: .
+    container_name: jobwatch-app
+    ports:
+      - "5050:5050"
+    environment:
+      - FLASK_ENV=production
+      - DEBUG=false
+      - PORT=5050
+      # Load from .env file
+      - SECRET_KEY=${SECRET_KEY}
+      - DASHBOARD_USERNAME=${DASHBOARD_USERNAME}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
+      - EXTENSION_TOKEN=${EXTENSION_TOKEN}
+      - SENDER_EMAIL=${SENDER_EMAIL}
+      - SENDER_PASSWORD=${SENDER_PASSWORD}
+      - NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL}
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USE_TLS=${SMTP_USE_TLS}
+      - MANUS_API_KEY=${MANUS_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ./jobwatch.db:/app/jobwatch.db
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5050/api/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Scheduler service (runs in background)
+  scheduler:
+    build: .
+    container_name: jobwatch-scheduler
+    environment:
+      - FLASK_ENV=production
+      - DEBUG=false
+      - SCAN_INTERVAL_DAYS=1
+      - SUGGESTION_INTERVAL_DAYS=2
+      - GRACE_CHECK_INTERVAL_DAYS=7
+      # Load from .env file
+      - SECRET_KEY=${SECRET_KEY}
+      - DASHBOARD_USERNAME=${DASHBOARD_USERNAME}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
+      - EXTENSION_TOKEN=${EXTENSION_TOKEN}
+      - SENDER_EMAIL=${SENDER_EMAIL}
+      - SENDER_PASSWORD=${SENDER_PASSWORD}
+      - NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL}
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USE_TLS=${SMTP_USE_TLS}
+      - MANUS_API_KEY=${MANUS_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ./jobwatch.db:/app/jobwatch.db
+      - ./logs:/app/logs
+    command: python scheduler.py
+    restart: unless-stopped
+    depends_on:
+      - app
+
+volumes:
+  jobwatch-data:
+    driver: local

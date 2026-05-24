@@ -9,18 +9,24 @@ PROFILE_INFO = {
     'email':      '',   # fill in .env or profile page
     'phone':      '',   # fill in profile page
     'website':    '',
+    'address_street': '3765 Grosvenor Rd',
+    'address_city':   'South Euclid',
+    'address_state':  'OH',
+    'address_zip':    '44118',
+    'pref_username':  'khalawright5',
+    'pref_pw_hint':   'JobWatch2026! (Standard Career Portal PW)',
 }
 
 SUMMARIES = {
     'A': (
-        "Security analyst and detection engineer with 3+ years investigating application security events, "
+        "Product Support Engineer and security-focused professional with 3+ years investigating application security events, "
         "remediating IAM and access control violations, and enforcing compliance controls in Azure-hosted "
         "HIPAA-regulated environments. Holds M.S. Cybersecurity & Information Assurance (WGU, 2026), "
         "CompTIA CySA+ and PenTest+. Built DataPulse, a production DSPM tool integrating Wazuh 4.7 SIEM "
         "for real-time alert correlation and HIPAA Technical Safeguard violation scanning."
     ),
     'B': (
-        "Production Support Engineer and security-focused developer with 3+ years supporting enterprise "
+        "Product Support Engineer and security-focused developer with 3+ years supporting enterprise "
         ".NET/C# applications in Azure-hosted, regulated healthcare environments. Holds M.S. Cybersecurity "
         "& Information Assurance (WGU, 2026), CompTIA CySA+ and PenTest+. Proven ability to own incidents "
         "end-to-end, build internal tooling, and communicate technical findings to non-technical stakeholders."
@@ -30,7 +36,7 @@ SUMMARIES = {
 EXPERIENCE = [
     {
         'resume': 'A',
-        'title':   'Security Operations Engineer',
+        'title':   'Product Support Engineer',
         'company': 'Solventum (formerly 3M Health)',
         'start':   '01/2024',
         'end':     'Present',
@@ -47,7 +53,7 @@ EXPERIENCE = [
     },
     {
         'resume': 'B',
-        'title':   'Production Support Engineer',
+        'title':   'Product Support Engineer',
         'company': 'Solventum (formerly 3M Health)',
         'start':   '01/2024',
         'end':     'Present',
@@ -64,7 +70,7 @@ EXPERIENCE = [
     },
     {
         'resume': 'A',
-        'title':   'Security-Focused Support Engineer',
+        'title':   'Product Support Engineer',
         'company': '3M Health',
         'start':   '06/2023',
         'end':     '01/2024',
@@ -76,7 +82,7 @@ EXPERIENCE = [
     },
     {
         'resume': 'B',
-        'title':   'Production Support Engineer',
+        'title':   'Product Support Engineer',
         'company': '3M Health',
         'start':   '06/2023',
         'end':     '01/2024',

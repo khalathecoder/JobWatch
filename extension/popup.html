@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JobWatch Pro</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>JobWatch Pro</h1>
+      <p class="subtitle">Job Application Tracker</p>
+    </header>
+
+    <main>
+      <section class="job-info">
+        <h2>Current Job</h2>
+        <div id="jobDetails" class="job-details">
+          <p class="loading">Loading job information...</p>
+        </div>
+      </section>
+
+      <section class="actions">
+        <button id="markAppliedBtn" class="btn btn-primary">
+          <span class="icon">✓</span>
+          Mark as Applied
+        </button>
+        <button id="openDashboardBtn" class="btn btn-secondary">
+          <span class="icon">📊</span>
+          Open Dashboard
+        </button>
+      </section>
+
+      <section class="status">
+        <div id="statusMessage" class="status-message"></div>
+      </section>
+
+      <footer>
+        <p class="version">v1.0.0</p>
+        <a href="#" id="settingsLink">Settings</a>
+      </footer>
+    </main>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -140,17 +140,22 @@ def suggest_companies(sectors):
         f"{r['name']} ({r.get('notes','')})" for r in approved if r['type']=='company'
     )[:300] or 'None yet'
 
-    prompt = f"""I need you to suggest companies for a cybersecurity job seeker. Use web search to find real, accurate information about each company's careers page and recent security job postings.
-
-CANDIDATE PROFILE:
-- 3+ years in production support + security operations at Solventum/3M Health IT (healthcare)
-- Daily tools: SailPoint IIQ (access provisioning/entitlements), CyberArk PAM (privileged credentials), Microsoft Sentinel (SIEM/KQL), Tenable/Nessus, Defender for Endpoint, Wazuh
-- Dev: C#/.NET, Python, PowerShell, Bash, SQL Server, Azure (App Services, App Insights)
-- Certs: CompTIA CySA+, CompTIA PenTest+, M.S. Cybersecurity & Information Assurance (WGU, May 2026)
-- Strong in: HIPAA compliance, IAM workflows, incident investigation, log analysis, healthcare IT
-- Salary target: $85,000 - $120,000
-- Location: Cleveland Heights, OH — FULLY REMOTE only (no hybrid, no onsite)
-- Prefers: internal security teams at enterprise companies (500+ employees), NOT staffing agencies or MSSPs
+    prompt = f"""I need you to suggest companies for a cybersecurity and product support job seeker. Use web search to find real, accurate information about each company's careers page and recent job postings.
+	
+	CANDIDATE PROFILE:
+	- Name: Khala Wright
+	- Target Roles: Security Analyst, Detection Engineer, SIEM & Compliance Specialist, Product Support Engineer, Application Support Engineer.
+	- Experience: 3+ years at Solventum (formerly 3M Health) and iScriptServices.
+	- Key Expertise: Investigating application security events, remediating IAM and access control violations, enforcing HIPAA compliance, and performing high-level application/production support.
+	- Tools (Security): SailPoint IIQ, CyberArk PAM, Microsoft Sentinel, Tenable/Nessus, Defender for Endpoint, Wazuh SIEM, Burp Suite.
+	- Tools (Cloud/Dev): Microsoft Azure (App Services, Application Insights, KQL, Storage), IIS, CI/CD pipelines, .NET/ASP.NET Core, Blazor.
+	- Languages: C#, Python, PowerShell, Bash, SQL, JavaScript, TypeScript.
+	- Certifications: CompTIA CySA+, CompTIA PenTest+.
+	- Education: M.S. Cybersecurity & Information Assurance (WGU, May 2026).
+	- Specific Project: Built "DataPulse", a DSPM tool integrating Wazuh SIEM for HIPAA violation scanning.
+	- Salary target: $85,000 - $120,000
+	- Location: Cleveland Heights, OH — FULLY REMOTE only (no hybrid, no onsite)
+	- Prefers: Internal security or product support teams at enterprise companies (500+ employees), especially in healthcare, finance, or tech. Avoid staffing agencies or MSSPs.
 
 DO NOT SUGGEST:
 - MSSPs, managed security providers, or IT staffing agencies
@@ -246,40 +251,35 @@ Job Description (first 600 chars):
 {description[:600] if description else "Not available — score based on title and keywords only"}
 """ if description else "Job description not available."
 
-    prompt = f"""Score this job 1-10 for this candidate. Use the description to verify the role is relevant to her software/security background.
-
-CANDIDATE PROFILE:
-- Production Support Engineer pivoting to cybersecurity
-- Daily tools at current job: SailPoint IIQ, CyberArk PAM, Microsoft Sentinel, Azure KQL/App Insights, Tenable/Nessus, Defender for Endpoint, Wazuh SIEM
-- Dev skills: C#/.NET, Python, PowerShell, Bash, SQL Server, Azure (App Services, IIS)
-- Certs: CompTIA CySA+, CompTIA PenTest+, M.S. Cybersecurity (WGU 2026)
-- Background: HIPAA compliance, healthcare IT, IAM workflows, incident investigation, log analysis
-- Runs daily scrum, sprint reviews — cross-functional coordination experience
-- Target salary: $85k-$120k
-- Location: Cleveland Heights OH — wants REMOTE or within 50 miles of Cleveland
-
-HARD DOWN-SCORE RULES — only these warrant a 1-3 score:
-- Active security clearance required (TS, Secret, TS/SCI, Polygraph) → score 1-2
-- On-site only with no remote option AND not in Cleveland/NE Ohio area → score 1-3
-- Title contains Director, VP, CISO, Chief, SVP, EVP → score 1-2
-- Description reveals non-SW role (electrical, mechanical, civil, HVAC, facilities) → score 1
-
-SCORE NORMALLY — do NOT penalize these:
-- MSSPs and managed security providers → score on role quality, not company type
-  (detection engineer at MSSP = good; tier 1 alert triage only = mediocre)
-- Staffing agencies / contract placements → flag in reason but score the role itself
-- Tier 1 SOC Analyst title → read the description, score on actual responsibilities
-  (meaty description with real tools = 6-8; pure alert triage with no growth = 4-5)
-- Years required (8+, 10+, 12+) → she's not against it, max -1 point
-- Contract or contract-to-hire → score the role, mention it in reason
-- Missing 1-2 specific tools → she can learn, max -1 point
-- Consulting roles without heavy travel → score normally
-
-UP-SCORE FACTORS:
-- Mentions SailPoint, CyberArk, Azure, HIPAA, healthcare → +1-2 points each
-- Explicitly remote or Cleveland/Ohio location → +1 point
-- IAM, SIEM, SOC, detection engineering focus → +2 points
-- Similar to previously approved jobs → +1-2 points
+    prompt = f"""Score this job 1-10 for this candidate. Use the description to verify the role is relevant to her software/security or product support background.
+	
+	CANDIDATE PROFILE:
+	- Production Support Engineer (Current) pivoting to cybersecurity.
+	- Daily tools: SailPoint IIQ, CyberArk PAM, Microsoft Sentinel, Azure KQL/App Insights, Tenable/Nessus, Defender for Endpoint, Wazuh SIEM.
+	- Dev skills: C#/.NET, Python, PowerShell, Bash, SQL Server, Azure (App Services, IIS).
+	- Certs: CompTIA CySA+, CompTIA PenTest+, M.S. Cybersecurity (WGU 2026).
+	- Background: HIPAA compliance, healthcare IT, IAM workflows, incident investigation, log analysis, high-level production support.
+	- Target salary: $85k-$120k
+	- Location: Cleveland Heights OH — wants REMOTE or within 50 miles of Cleveland.
+	
+	HARD DOWN-SCORE RULES — only these warrant a 1-3 score:
+	- Active security clearance required (TS, Secret, TS/SCI, Polygraph) → score 1-2.
+	- On-site only with no remote option AND not in Cleveland/NE Ohio area → score 1-3.
+	- Title contains Director, VP, CISO, Chief, SVP, EVP → score 1-2.
+	- Description reveals non-SW role (electrical, mechanical, civil, HVAC, facilities) → score 1.
+	
+	SCORE NORMALLY — do NOT penalize these:
+	- MSSPs and managed security providers → score on role quality.
+	- Staffing agencies / contract placements → score the role itself.
+	- Tier 1 SOC Analyst title → read description for actual responsibilities.
+	- Senior Product/Production Support roles → she is highly qualified for these.
+	
+	UP-SCORE FACTORS:
+	- Mentions SailPoint, CyberArk, Azure, HIPAA, healthcare → +1-2 points each.
+	- Explicitly remote or Cleveland/Ohio location → +1 point.
+	- IAM, SIEM, SOC, detection engineering focus → +2 points.
+	- Production/Product Support Engineer roles matching her Azure/KQL/Support background → +2 points.
+	- Similar to previously approved jobs → +1-2 points.
 
 PREVIOUSLY APPROVED JOBS (she liked these):
 {approved_ex}

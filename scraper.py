@@ -20,8 +20,15 @@ COMPANIES = [
     {'name': 'UnitedHealth / Optum',  'type': 'workday', 'tenant': 'uhg',             'career_site': 'Optum_Careers'},
     {'name': 'FirstEnergy',           'type': 'workday', 'tenant': 'firstenergycorp', 'career_site': 'FE_External'},
     {'name': 'KeyBank',               'type': 'workday', 'tenant': 'key',             'career_site': 'Key_External_Career_Site'},
+    {'name': 'Phreesia',              'type': 'workday', 'tenant': 'phreesia',         'career_site': 'Phreesia'},
+    {'name': 'Owens & Minor',         'type': 'workday', 'tenant': 'owensminor',       'career_site': 'OMCareers'},
+    {'name': 'CVS Health',            'type': 'workday', 'tenant': 'cvshealth',        'career_site': 'CVS_Health_External_Career_Site'},
+    {'name': 'McKesson',              'type': 'workday', 'tenant': 'mckesson',         'career_site': 'McKesson_External_Career_Site'},
+    {'name': 'Johnson & Johnson',     'type': 'workday', 'tenant': 'jnj',              'career_site': 'JNJ_External_Career_Site'},
+    {'name': 'Medtronic',             'type': 'workday', 'tenant': 'medtronic',        'career_site': 'Medtronic_External_Career_Site'},
     {'name': 'University Hospitals',  'type': 'html',    'search_url': 'https://careers.uhhospitals.org/search/?q=security+analyst'},
     {'name': 'MetroHealth',           'type': 'html',    'search_url': 'https://jobs.metrohealth.org/search/?q=security'},
+    {'name': 'iScribeHealth',         'type': 'html',    'search_url': 'https://www.iscribehealth.com/careers'},
 ]
 
 def get_company_names():
@@ -81,6 +88,11 @@ SEARCH_TERMS = [
     'application security',
     'compliance analyst',
     'production support engineer',
+    'product support engineer',
+    'application support engineer',
+    'platform support engineer',
+    'technical support engineer l3',
+    'site reliability engineer',
 ]
 
 SW_KEYWORDS = [
@@ -88,6 +100,9 @@ SW_KEYWORDS = [
     'cyber', 'analyst', 'engineer', 'developer', 'devops', 'cloud',
     'identity', 'access', 'compliance', 'risk', 'incident', 'threat',
     'endpoint', 'network security', 'application security',
+    'production support', 'product support', 'application support',
+    'platform support', 'sre', 'site reliability', 'azure monitor',
+    'application insights', 'kql', 'troubleshooting', 'incident management',
 ]
 
 def keyword_match(title, description=''):
@@ -292,8 +307,69 @@ def scrape_dynamic_company(co):
     else:
         return scrape_html(name, url)
 
+# ── Company Discovery ──────────────────────────────────────────────────────────
+def discover_new_companies():
+    """
+    Uses the 'Pro Researcher' mode via Manus API to find high-quality companies.
+    Falls back to basic LLM discovery if Manus API key is missing.
+    """
+    import os
+    if os.getenv('MANUS_API_KEY'):
+        from manus_researcher import run_manus_discovery
+        return run_manus_discovery()
+    
+    # Fallback to basic discovery if no API key
+    from suggestions import call_claude, parse_json_response
+    from database import get_conn
+    
+    print("  [DISCOVERY] (Fallback) Searching for new companies...")
+    
+    prompt = """
+    Search for 5 large healthcare, finance, or technology companies that use Workday, Greenhouse, or Lever.
+    Target companies must be relevant to this profile:
+    - Name: Khala Wright (Security Analyst / Detection Engineer / Product Support Engineer)
+    - Key Tools: SailPoint IIQ, CyberArk PAM, Microsoft Sentinel, Azure KQL, Wazuh SIEM, Application Insights.
+    - Expertise: HIPAA compliance, IAM, SOC operations, .NET/Python automation, Application Support.
+    - Preference: Fully remote roles in large enterprises (500+ employees).
+    
+    Return ONLY a valid JSON array of objects:
+    [
+      {
+        "name": "Company Name",
+        "sector": "healthcare",
+        "ats_type": "workday",
+        "careers_url": "https://company.wd5.myworkdayjobs.com/Careers"
+      }
+    ]
+    """
+    
+    result = call_claude(prompt, use_search=True)
+    if not result: return 0
+    companies = parse_json_response(result)
+    if not isinstance(companies, list): return 0
+        
+    conn = get_conn()
+    added = 0
+    for co in companies:
+        try:
+            conn.execute(
+                '''INSERT OR IGNORE INTO company_suggestions
+                   (name, sector, ats_type, career_url, status)
+                   VALUES (?,?,?,?,?)''',
+                (co['name'], co['sector'], co['ats_type'], co['careers_url'], 'pending')
+            )
+            added += 1
+        except: pass
+    
+    conn.commit()
+    conn.close()
+    return added
+
 # ── Main run ───────────────────────────────────────────────────────────────────
-def run_scrape(company_name=None):
+def run_scrape(company_name=None, discover=False):
+    if discover:
+        discover_new_companies()
+
     from settings_db import get_grace_days
     results = []
 

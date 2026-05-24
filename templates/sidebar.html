@@ -22,10 +22,9 @@
     <div class="sb-section">
       <div class="sb-section-label">Personal Info</div>
       {% set info = profile.info %}
-      {% for key, label in [
-          ('full_name','Full Name'), ('email','Email'), ('phone','Phone'),
-          ('location','Location'), ('linkedin','LinkedIn'), ('github','GitHub')
-      ] %}
+      
+      <!-- Identity -->
+      {% for key, label in [('full_name','Full Name'), ('email','Email'), ('phone','Phone')] %}
       {% if info.get(key) %}
       <div class="sb-field">
         <div class="sb-field-label">{{ label }}</div>
@@ -36,6 +35,57 @@
       </div>
       {% endif %}
       {% endfor %}
+
+      <!-- Address -->
+      <div class="sb-field">
+        <div class="sb-field-label">Address (Street, City, ST Zip)</div>
+        <div class="sb-field-row">
+          <span class="sb-field-val">{{ info.get('address_street','') }}, {{ info.get('address_city','') }}, {{ info.get('address_state','') }} {{ info.get('address_zip','') }}</span>
+          <button class="sb-copy" onclick="copyText('{{ info.get('address_street','') }}, {{ info.get('address_city','') }}, {{ info.get('address_state','') }} {{ info.get('address_zip','') }}', this)">⎘</button>
+        </div>
+        <div class="sb-bulk-btns" style="margin-top:4px">
+          <button class="sb-bulk" onclick="copyText('{{ info.get('address_street','') }}', this)">Street</button>
+          <button class="sb-bulk" onclick="copyText('{{ info.get('address_city','') }}', this)">City</button>
+          <button class="sb-bulk" onclick="copyText('{{ info.get('address_state','') }}', this)">ST</button>
+          <button class="sb-bulk" onclick="copyText('{{ info.get('address_zip','') }}', this)">Zip</button>
+        </div>
+      </div>
+
+      <!-- Links -->
+      {% for key, label in [('linkedin','LinkedIn'), ('github','GitHub'), ('website','Website')] %}
+      {% if info.get(key) %}
+      <div class="sb-field">
+        <div class="sb-field-label">{{ label }}</div>
+        <div class="sb-field-row">
+          <span class="sb-field-val">{{ info[key] }}</span>
+          <button class="sb-copy" onclick="copyText('{{ info[key]|e }}', this)">⎘</button>
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+
+    <!-- Login Helper -->
+    <div class="sb-section" style="background: rgba(46, 114, 194, 0.05);">
+      <div class="sb-section-label" style="color: var(--accent);">Login Helper (Sign-up)</div>
+      <div class="sb-field">
+        <div class="sb-field-label">Preferred Username</div>
+        <div class="sb-field-row">
+          <span class="sb-field-val">{{ info.get('pref_username','khalawright5') }}</span>
+          <button class="sb-copy" onclick="copyText('{{ info.get('pref_username','khalawright5') }}', this)">⎘</button>
+        </div>
+        <div class="sb-field-row" style="margin-top:4px">
+          <span class="sb-field-val">{{ info.get('email','khalawright5@gmail.com') }}</span>
+          <button class="sb-copy" onclick="copyText('{{ info.get('email','khalawright5@gmail.com') }}', this)">⎘</button>
+        </div>
+      </div>
+      <div class="sb-field">
+        <div class="sb-field-label">Password Suggestion</div>
+        <div class="sb-field-row">
+          <span class="sb-field-val">{{ info.get('pref_pw_hint','JobWatch2026!') }}</span>
+          <button class="sb-copy" onclick="copyText('{{ info.get('pref_pw_hint','JobWatch2026!') }}', this)">⎘</button>
+        </div>
+      </div>
     </div>
 
     <!-- Summary -->
@@ -294,7 +344,8 @@
   transition: all 0.1s;
 }
 .sb-copy:hover { color: var(--accent); background: var(--border); }
-.sb-copy.copied { color: var(--new); }
+.sb-copy.copied { color: var(--new) !important; }
+.sb-bulk.copied { color: var(--new) !important; border-color: var(--new) !important; }
 .sb-copy-xs { font-size: 12px; padding: 1px 5px; }
 
 .sb-summary {

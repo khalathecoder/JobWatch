@@ -7,6 +7,7 @@ def get_conn():
     return c
 
 def init_db():
+    """Initialize all database tables. Call this once on startup."""
     conn = get_conn()
     conn.executescript('''
         CREATE TABLE IF NOT EXISTS jobs (
@@ -19,6 +20,7 @@ def init_db():
             keywords  TEXT,
             status    TEXT DEFAULT 'new',
             seen      INTEGER DEFAULT 0,
+            expired   INTEGER DEFAULT 0,
             found_at  TEXT DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS job_queue (
@@ -48,6 +50,11 @@ def init_db():
             hq_location     TEXT,
             why_suggested   TEXT,
             status          TEXT DEFAULT 'pending',
+            approved_at     TEXT,
+            total_jobs_found INTEGER DEFAULT 0,
+            last_job_found  TEXT,
+            last_scanned    TEXT,
+            scan_count      INTEGER DEFAULT 0,
             suggested_at    TEXT DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS preference_log (
@@ -72,6 +79,38 @@ def init_db():
             jobs_found INTEGER DEFAULT 0,
             jobs_new   INTEGER DEFAULT 0,
             error      TEXT
+        );
+        CREATE TABLE IF NOT EXISTS web_saves (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            title       TEXT,
+            company     TEXT,
+            url         TEXT NOT NULL UNIQUE,
+            description TEXT,
+            status      TEXT DEFAULT 'saved',
+            saved_at    TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS approved_companies (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            name         TEXT UNIQUE NOT NULL,
+            sector       TEXT,
+            ats_type     TEXT DEFAULT 'Unknown',
+            workday_tenant TEXT,
+            careers_url  TEXT,
+            hq           TEXT,
+            why_added    TEXT,
+            active       INTEGER DEFAULT 1,
+            added_at     TEXT DEFAULT CURRENT_TIMESTAMP,
+            last_scanned TEXT
+        );
+        CREATE TABLE IF NOT EXISTS notification_log (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id     INTEGER,
+            job_title  TEXT,
+            company    TEXT,
+            score      INTEGER,
+            sent_at    TEXT DEFAULT CURRENT_TIMESTAMP,
+            recipient  TEXT,
+            status     TEXT DEFAULT 'sent'
         );
     ''')
     # Seed default settings if not present
@@ -124,7 +163,7 @@ def save_setting(key, value):
 # ── Jobs ──────────────────────────────────────────────────────────────────────
 def get_jobs(status_filter=None, keyword_filter=None, company_filter=None):
     conn = get_conn()
-    q = 'SELECT * FROM jobs WHERE 1=1'
+    q = 'SELECT * FROM jobs WHERE expired=0'
     p = []
     if status_filter and status_filter != 'all':
         q += ' AND status=?'; p.append(status_filter)
@@ -148,18 +187,24 @@ def mark_seen(job_id):
     conn.execute('UPDATE jobs SET seen=1 WHERE id=?', (job_id,))
     conn.commit(); conn.close()
 
+def mark_expired(job_id):
+    """Mark a job as expired (URL no longer valid)."""
+    conn = get_conn()
+    conn.execute('UPDATE jobs SET expired=1, status=? WHERE id=?', ('closed', job_id))
+    conn.commit(); conn.close()
+
 def get_companies():
     conn = get_conn()
-    rows = conn.execute('SELECT DISTINCT company FROM jobs ORDER BY company').fetchall()
+    rows = conn.execute('SELECT DISTINCT company FROM jobs WHERE expired=0 ORDER BY company').fetchall()
     conn.close()
     return [r['company'] for r in rows]
 
 def get_stats():
     conn = get_conn()
-    total   = conn.execute('SELECT COUNT(*) FROM jobs').fetchone()[0]
-    new     = conn.execute("SELECT COUNT(*) FROM jobs WHERE status='new'").fetchone()[0]
-    saved   = conn.execute("SELECT COUNT(*) FROM jobs WHERE status='saved'").fetchone()[0]
-    applied = conn.execute("SELECT COUNT(*) FROM jobs WHERE status='applied'").fetchone()[0]
+    total   = conn.execute('SELECT COUNT(*) FROM jobs WHERE expired=0').fetchone()[0]
+    new     = conn.execute("SELECT COUNT(*) FROM jobs WHERE expired=0 AND status='new'").fetchone()[0]
+    saved   = conn.execute("SELECT COUNT(*) FROM jobs WHERE expired=0 AND status='saved'").fetchone()[0]
+    applied = conn.execute("SELECT COUNT(*) FROM jobs WHERE expired=0 AND status='applied'").fetchone()[0]
     pend_j  = conn.execute("SELECT COUNT(*) FROM job_queue WHERE status='pending'").fetchone()[0]
     pend_c  = conn.execute("SELECT COUNT(*) FROM company_suggestions WHERE status='pending'").fetchone()[0]
     last    = conn.execute('SELECT scanned_at FROM scan_log ORDER BY scanned_at DESC LIMIT 1').fetchone()
@@ -256,7 +301,7 @@ def approve_company(company_id):
     conn = get_conn()
     row = conn.execute('SELECT * FROM company_suggestions WHERE id=?', (company_id,)).fetchone()
     if row:
-        conn.execute("UPDATE company_suggestions SET status='approved' WHERE id=?", (company_id,))
+        conn.execute("UPDATE company_suggestions SET status='approved', approved_at=datetime('now') WHERE id=?", (company_id,))
         conn.execute(
             'INSERT INTO preference_log (type,name,decision,reason) VALUES (?,?,?,?)',
             ('company', row['name'], 'approved', row['sector'])
@@ -310,149 +355,15 @@ def log_scan(company, found, new_count, error=None):
                  (company, found, new_count, error))
     conn.commit(); conn.close()
 
-# ── Queue + preference tables ──────────────────────────────────────────────────
-def init_queue_tables():
-    conn = get_conn()
-    conn.executescript('''
-        CREATE TABLE IF NOT EXISTS company_suggestions (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            name         TEXT NOT NULL UNIQUE,
-            sector       TEXT,
-            ats_type     TEXT DEFAULT 'Unknown',
-            hq           TEXT,
-            why_suggested TEXT,
-            status       TEXT DEFAULT 'pending',
-            suggested_at TEXT DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS job_queue (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            company      TEXT,
-            title        TEXT,
-            location     TEXT,
-            url          TEXT UNIQUE,
-            posted_on    TEXT,
-            keywords     TEXT,
-            score        INTEGER DEFAULT 0,
-            score_reason TEXT,
-            age_badge    TEXT,
-            status       TEXT DEFAULT 'pending',
-            found_at     TEXT DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS preference_log (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            type      TEXT,
-            name      TEXT,
-            decision  TEXT,
-            keywords  TEXT,
-            sector    TEXT,
-            notes     TEXT,
-            logged_at TEXT DEFAULT CURRENT_TIMESTAMP
-        );
-    ''')
-    conn.commit()
-    conn.close()
-
-def get_pending_companies():
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT * FROM company_suggestions WHERE status='pending' ORDER BY suggested_at DESC"
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-def get_pending_jobs(threshold=0):
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT * FROM job_queue WHERE status='pending' AND score >= ? ORDER BY score DESC, found_at DESC",
-        (threshold,)
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-def approve_company(company_id):
-    conn = get_conn()
-    row = conn.execute('SELECT * FROM company_suggestions WHERE id=?', (company_id,)).fetchone()
-    if row:
-        conn.execute("UPDATE company_suggestions SET status='approved' WHERE id=?", (company_id,))
-        conn.commit()
-    conn.close()
-    return dict(row) if row else None
-
-def reject_company(company_id):
-    conn = get_conn()
-    row = conn.execute('SELECT * FROM company_suggestions WHERE id=?', (company_id,)).fetchone()
-    if row:
-        conn.execute("UPDATE company_suggestions SET status='rejected' WHERE id=?", (company_id,))
-        conn.commit()
-    conn.close()
-    return dict(row) if row else None
-
-def approve_job(job_id):
-    conn = get_conn()
-    job = conn.execute('SELECT * FROM job_queue WHERE id=?', (job_id,)).fetchone()
-    if job:
-        conn.execute("UPDATE job_queue SET status='approved' WHERE id=?", (job_id,))
-        # Move to main jobs table
-        conn.execute(
-            'INSERT OR IGNORE INTO jobs (company,title,location,url,posted_on,keywords,status) VALUES (?,?,?,?,?,?,?)',
-            (job['company'], job['title'], job['location'], job['url'],
-             job['posted_on'], job['keywords'], 'new')
-        )
-        conn.commit()
-    conn.close()
-    return dict(job) if job else None
-
-def reject_job(job_id):
-    conn = get_conn()
-    job = conn.execute('SELECT * FROM job_queue WHERE id=?', (job_id,)).fetchone()
-    if job:
-        conn.execute("UPDATE job_queue SET status='rejected' WHERE id=?", (job_id,))
-        conn.commit()
-    conn.close()
-    return dict(job) if job else None
-
-def get_queue_counts():
-    conn = get_conn()
-    companies = conn.execute("SELECT COUNT(*) FROM company_suggestions WHERE status='pending'").fetchone()[0]
-    jobs      = conn.execute("SELECT COUNT(*) FROM job_queue WHERE status='pending'").fetchone()[0]
-    conn.close()
-    return {'companies': companies, 'jobs': jobs}
-
 # ── Approved companies table ───────────────────────────────────────────────────
 def init_approved_companies():
+    """Initialize approved_companies table (called during app startup)."""
     conn = get_conn()
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS approved_companies (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            name         TEXT UNIQUE NOT NULL,
-            sector       TEXT,
-            ats_type     TEXT DEFAULT 'Unknown',
-            workday_tenant TEXT,
-            careers_url  TEXT,
-            hq           TEXT,
-            why_added    TEXT,
-            active       INTEGER DEFAULT 1,
-            added_at     TEXT DEFAULT CURRENT_TIMESTAMP,
-            last_scanned TEXT
-        )
-    ''')
-    # Also add new columns to company_suggestions if they don't exist
-    for col, typedef in [
-        ('careers_url',    'TEXT DEFAULT ""'),
-        ('sample_roles',   'TEXT DEFAULT "[]"'),
-        ('has_live_roles', 'INTEGER DEFAULT 0'),
-        ('verified',       'INTEGER DEFAULT 0'),
-        ('workday_tenant', 'TEXT DEFAULT ""'),
-    ]:
-        try:
-            conn.execute(f'ALTER TABLE company_suggestions ADD COLUMN {col} {typedef}')
-        except:
-            pass
-    conn.commit()
+    # Table already created in init_db, but this ensures backward compatibility
     conn.close()
 
 def add_approved_company(suggestion_id):
-    """Move a suggestion to approved_companies. Returns the company dict."""
+    """Move a suggestion to approved status. Returns the company dict."""
     conn = get_conn()
     row = conn.execute(
         'SELECT * FROM company_suggestions WHERE id=?', (suggestion_id,)
@@ -461,41 +372,16 @@ def add_approved_company(suggestion_id):
         conn.close()
         return None
     row = dict(row)
-    conn.execute("UPDATE company_suggestions SET status='approved' WHERE id=?", (suggestion_id,))
-    conn.execute('''
-        INSERT OR IGNORE INTO approved_companies
-        (name, sector, ats_type, workday_tenant, careers_url, hq, why_added)
-        VALUES (?,?,?,?,?,?,?)
-    ''', (row['name'], row.get('sector',''), row.get('ats_type','Unknown'),
-          row.get('workday_tenant',''), row.get('careers_url',''),
-          row.get('hq',''), row.get('why_suggested','')))
+    conn.execute("UPDATE company_suggestions SET status='approved', approved_at=datetime('now') WHERE id=?", (suggestion_id,))
     conn.commit()
     conn.close()
     return row
 
-def get_approved_companies():
+def get_watching_companies():
+    """Approved companies still in grace period with no jobs yet."""
     conn = get_conn()
     rows = conn.execute(
-        'SELECT * FROM approved_companies WHERE active=1 ORDER BY name'
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-def update_last_scanned(company_name):
-    conn = get_conn()
-    conn.execute(
-        "UPDATE approved_companies SET last_scanned=datetime('now') WHERE name=?",
-        (company_name,)
-    )
-    conn.commit()
-    conn.close()
-
-# ── Company watchlist management ───────────────────────────────────────────────
-def get_watchlist_companies():
-    """All approved companies regardless of job status."""
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT * FROM company_suggestions WHERE status='approved' ORDER BY approved_at DESC"
+        "SELECT * FROM company_suggestions WHERE status='approved' AND (total_jobs_found IS NULL OR total_jobs_found = 0) ORDER BY approved_at DESC"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -505,15 +391,6 @@ def get_active_companies():
     conn = get_conn()
     rows = conn.execute(
         "SELECT * FROM company_suggestions WHERE status='approved' AND total_jobs_found > 0 ORDER BY last_job_found DESC"
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-def get_watching_companies():
-    """Approved companies still in grace period with no jobs yet."""
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT * FROM company_suggestions WHERE status='approved' AND (total_jobs_found IS NULL OR total_jobs_found = 0) ORDER BY approved_at DESC"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -530,7 +407,7 @@ def restore_company(company_id):
     """Restore an auto-rejected company back to watchlist."""
     conn = get_conn()
     conn.execute(
-        "UPDATE company_suggestions SET status='approved', why_rejected=NULL, approved_at=datetime('now'), total_jobs_found=0 WHERE id=?",
+        "UPDATE company_suggestions SET status='approved', approved_at=datetime('now'), total_jobs_found=0 WHERE id=?",
         (company_id,)
     )
     conn.commit()
@@ -576,10 +453,9 @@ def check_and_auto_reject(grace_days=14):
         days = (datetime.now() - datetime.fromisoformat(co['approved_at'])).days
         conn.execute('''
             UPDATE company_suggestions
-            SET status='auto_rejected',
-                why_rejected=?
+            SET status='auto_rejected'
             WHERE id=?
-        ''', (f'No relevant listings found after {days} days of monitoring', co['id']))
+        ''', (co['id'],))
         auto_rejected.append(dict(co))
 
     conn.commit()
@@ -598,3 +474,86 @@ def get_company_stats():
         'total': total, 'active': active,
         'watching': watching, 'rejected': rejected, 'pending': pending
     }
+
+def update_last_scanned(company_name):
+    """Update last_scanned timestamp for a company."""
+    conn = get_conn()
+    conn.execute(
+        "UPDATE company_suggestions SET last_scanned=datetime('now') WHERE name=?",
+        (company_name,)
+    )
+    conn.commit()
+    conn.close()
+
+# ── Web saves ──────────────────────────────────────────────────────────────────
+def save_web_job(title, company, url, description):
+    """Save a job found via web/extension. Returns True if new."""
+    conn = get_conn()
+    existing = conn.execute('SELECT id FROM web_saves WHERE url=?', (url,)).fetchone()
+    if existing:
+        conn.close()
+        return False
+    conn.execute(
+        'INSERT INTO web_saves (title, company, url, description) VALUES (?,?,?,?)',
+        (title, company, url, description[:1000] if description else '')
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+def get_web_saves():
+    """Get all saved web jobs."""
+    conn = get_conn()
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("SELECT * FROM web_saves ORDER BY saved_at DESC").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def update_web_save_status(save_id, status):
+    """Update status of a web-saved job (applied, archived, etc)."""
+    conn = get_conn()
+    conn.execute('UPDATE web_saves SET status=? WHERE id=?', (status, save_id))
+    conn.commit()
+    conn.close()
+
+def get_web_saves_count():
+    """Get count of unseen web saves."""
+    conn = get_conn()
+    count = conn.execute("SELECT COUNT(*) FROM web_saves WHERE status='saved'").fetchone()[0]
+    conn.close()
+    return count
+
+# ── Notifications ──────────────────────────────────────────────────────────────
+def log_notification(job_id, job_title, company, score, recipient):
+    """Log that a notification was sent for a job."""
+    conn = get_conn()
+    conn.execute(
+        'INSERT INTO notification_log (job_id, job_title, company, score, recipient) VALUES (?,?,?,?,?)',
+        (job_id, job_title, company, score, recipient)
+    )
+    conn.commit()
+    conn.close()
+
+def get_notification_history(limit=50):
+    """Get recent notification history."""
+    conn = get_conn()
+    rows = conn.execute(
+        'SELECT * FROM notification_log ORDER BY sent_at DESC LIMIT ?',
+        (limit,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+# ── Queue counts ───────────────────────────────────────────────────────────────
+def get_queue_counts():
+    """Get pending counts for dashboard."""
+    conn = get_conn()
+    companies = conn.execute("SELECT COUNT(*) FROM company_suggestions WHERE status='pending'").fetchone()[0]
+    jobs      = conn.execute("SELECT COUNT(*) FROM job_queue WHERE status='pending'").fetchone()[0]
+    conn.close()
+    return {'companies': companies, 'jobs': jobs}
+
+# ── Backward compatibility ─────────────────────────────────────────────────────
+def init_queue_tables():
+    """Backward compatibility function. All tables are now created in init_db()."""
+    pass

@@ -1,18 +1,22 @@
-import os, threading, json
+import os, sys, sqlite3, json
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
-from database import (init_db, init_queue_tables, get_jobs, update_status, mark_seen,
+from database import (init_db, init_queue_tables, get_jobs, update_status, mark_seen, mark_expired,
                       get_companies, get_stats, get_pending_companies, get_pending_jobs,
-                      get_queue_counts, approve_company, reject_company, approve_job, reject_job,
+                      approve_company, reject_company, approve_job, reject_job,
                       get_active_companies, get_watching_companies, get_auto_rejected_companies,
-                      restore_company, get_company_stats)
+                      restore_company, init_approved_companies, add_approved_company,
+                      save_web_job, get_web_saves, update_web_save_status,
+                      log_scan, update_company_scan, get_unscored_jobs, update_job_score,
+                      queue_job, save_company_suggestion, get_preference_summary)
 from scraper import run_scrape, get_company_names, run_company_scan
 from profile_db import init_profile_tables, get_profile, save_profile_info, save_summary, save_experience, save_passion
 from settings_db import init_settings, get_all as get_settings, save_all as save_settings, get
 from suggestions import score_pending_jobs, log_preference
 from company_pipeline import run_suggestion_pipeline
+from extension_api import extension_api, set_extension_token
 
 load_dotenv()
 app = Flask(__name__)
@@ -31,6 +35,10 @@ login_manager.login_message = ''
 
 USERNAME      = os.environ.get('DASHBOARD_USERNAME', 'khala')
 PASSWORD_HASH = generate_password_hash(os.environ.get('DASHBOARD_PASSWORD', 'changeme'))
+EXTENSION_TOKEN = os.environ.get('EXTENSION_TOKEN', 'jobwatch-local')
+
+# Set extension token
+set_extension_token(EXTENSION_TOKEN)
 
 class User(UserMixin):
     id = 'owner'
@@ -39,6 +47,12 @@ OWNER = User()
 @login_manager.user_loader
 def load_user(uid):
     return OWNER if uid == 'owner' else None
+
+# Register extension API blueprint
+app.register_blueprint(extension_api)
+
+# ── Extension API ─────────────────────────────────────────────────────────────
+# Extension API routes are registered via blueprint
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 @app.route('/login', methods=['GET','POST'])
@@ -98,242 +112,155 @@ def dashboard():
         jobs             = active_jobs,
         stats            = get_stats(),
         companies        = get_companies(),
-        all_targets      = get_company_names(),
-        resumes          = get_resume_list(),
-        profile          = get_profile(),
-        pending_companies= get_pending_companies(),
-        pending_jobs     = get_pending_jobs(threshold),
-        queue_counts     = get_queue_counts(),
-        filters          = {'status': status_filter, 'keyword': keyword_filter,
-                            'company': company_filter, 'age': age_filter},
-        settings         = settings
+        status_filter    = status_filter,
+        keyword_filter   = keyword_filter,
+        company_filter   = company_filter,
+        age_filter       = age_filter,
+        threshold        = threshold,
+        archive_days     = archive_days,
     )
 
 # ── Settings ──────────────────────────────────────────────────────────────────
-@app.route('/settings', methods=['GET','POST'])
+@app.route('/settings', methods=['GET', 'POST'])
 @login_required
-def settings_page():
-    saved = False
+def settings():
     if request.method == 'POST':
-        data = {}
-        for field in ['archive_after_days','score_threshold','suggestion_interval','sectors','company_grace_days']:
-            data[field] = request.form.get(field, '')
-        # Convert textarea newlines back to comma lists
-        data['must_match'] = ','.join(
-            l.strip() for l in request.form.get('must_match','').splitlines() if l.strip())
-        data['exclude'] = ','.join(
-            l.strip() for l in request.form.get('exclude','').splitlines() if l.strip())
-        save_settings(data)
-        saved = True
-    return render_template('settings.html',
-        settings    = get_settings(),
-        saved       = saved,
-        api_key_set = bool(os.environ.get('ANTHROPIC_API_KEY'))
-    )
+        data = request.get_json()
+        for key, value in data.items():
+            save_settings({key: value})
+        return jsonify({'ok': True})
+    return render_template('settings.html', settings=get_settings())
 
 # ── Profile ───────────────────────────────────────────────────────────────────
-@app.route('/profile', methods=['GET','POST'])
+@app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    saved = False
     if request.method == 'POST':
-        action = request.form.get('action')
-        if action == 'info':
-            save_profile_info({f: request.form.get(f,'') for f in
-                ['full_name','email','phone','location','linkedin','github','website']})
-            saved = True
-        elif action == 'summary':
-            save_summary('A', request.form.get('summary_a',''))
-            save_summary('B', request.form.get('summary_b',''))
-            save_passion(request.form.get('passion_statement',''))
-            saved = True
-        elif action == 'experience':
-            exp_id = int(request.form.get('exp_id'))
-            bullets = [b.strip() for b in request.form.get('responsibilities','').split('\n') if b.strip()]
-            save_experience(exp_id, {
-                'job_title': request.form.get('job_title',''),
-                'company': request.form.get('company',''),
-                'start_date': request.form.get('start_date',''),
-                'end_date': request.form.get('end_date',''),
-                'resume_version': request.form.get('resume_version','both'),
-                'responsibilities': bullets,
-            })
-            saved = True
-    return render_template('profile.html', profile=get_profile(), saved=saved)
-
-# ── Job actions ───────────────────────────────────────────────────────────────
-@app.route('/api/status', methods=['POST'])
-@login_required
-def set_status():
-    data = request.get_json()
-    if data.get('id') and data.get('status') in ('new','saved','applied','rejected'):
-        update_status(data['id'], data['status'])
+        data = request.get_json()
+        if 'info' in data:
+            save_profile_info(data['info'])
+        if 'summary' in data:
+            save_summary(data['summary'])
+        if 'experience' in data:
+            save_experience(data['experience'])
+        if 'passion' in data:
+            save_passion(data['passion'])
         return jsonify({'ok': True})
-    return jsonify({'ok': False}), 400
+    return render_template('profile.html', profile=get_profile())
 
-@app.route('/api/seen', methods=['POST'])
+# ── Job Queue Management ──────────────────────────────────────────────────────
+@app.route('/queue')
 @login_required
-def set_seen():
-    mark_seen(request.get_json().get('id'))
+def queue():
+    threshold = int(get('score_threshold', 6))
+    pending_jobs = get_pending_jobs(threshold)
+    pending_companies = get_pending_companies()
+    return render_template('queue.html',
+        pending_jobs=pending_jobs,
+        pending_companies=pending_companies
+    )
+
+@app.route('/api/approve-job/<int:job_id>', methods=['POST'])
+@login_required
+def api_approve_job(job_id):
+    approve_job(job_id)
     return jsonify({'ok': True})
 
-@app.route('/api/scan', methods=['POST'])
+@app.route('/api/reject-job/<int:job_id>', methods=['POST'])
 @login_required
-def trigger_scan():
-    company = request.get_json().get('company')
-    def run():
-        run_scrape(company)
-        score_pending_jobs()  # score newly queued jobs after scrape
-    threading.Thread(target=run, daemon=True).start()
+def api_reject_job(job_id):
+    reject_job(job_id, request.get_json().get('reason', ''))
     return jsonify({'ok': True})
 
-# ── Queue decisions ───────────────────────────────────────────────────────────
-@app.route('/api/queue/company', methods=['POST'])
+@app.route('/api/approve-company/<int:company_id>', methods=['POST'])
 @login_required
-def queue_company():
-    data     = request.get_json()
-    cid      = data.get('id')
-    decision = data.get('decision')
-    if decision == 'approve':
-        co = add_approved_company(cid)   # adds to approved_companies + marks suggestion approved
-        if co:
-            log_preference('company', co['name'], 'approved',
-                           co.get('sector',''), co.get('sector',''), co.get('why_suggested',''))
-            # Scan this company immediately in background
-            def scan_new(name):
-                run_scrape(name)
-                score_pending_jobs()
-                update_last_scanned(name)
-            threading.Thread(target=scan_new, args=(co['name'],), daemon=True).start()
-    else:
-        co = reject_company(cid)
-        if co:
-            log_preference('company', co['name'], 'rejected',
-                           co.get('sector',''), co.get('sector',''), '')
-    return jsonify({'ok': True, 'scanning': decision == 'approve'})
-
-@app.route('/api/queue/job', methods=['POST'])
-@login_required
-def queue_job_decision():
-    data     = request.get_json()
-    jid      = data.get('id')
-    decision = data.get('decision')
-    if decision == 'approve':
-        job = approve_job(jid)
-        if job:
-            log_preference('job', f"{job['title']} @ {job['company']}", 'approved',
-                           job.get('keywords',''), '', job.get('score_reason',''))
-    else:
-        job = reject_job(jid)
-        if job:
-            log_preference('job', f"{job['title']} @ {job['company']}", 'rejected',
-                           job.get('keywords',''), '', job.get('score_reason',''))
+def api_approve_company(company_id):
+    add_approved_company(company_id)
     return jsonify({'ok': True})
 
-@app.route('/api/suggest', methods=['POST'])
+@app.route('/api/reject-company/<int:company_id>', methods=['POST'])
 @login_required
-def trigger_suggestions():
-    threading.Thread(target=run_suggestion_pipeline, daemon=True).start()
-    return jsonify({'ok': True, 'message': 'Generating company suggestions...'})
+def api_reject_company(company_id):
+    reject_company(company_id, request.get_json().get('reason', ''))
+    return jsonify({'ok': True})
 
-@app.route('/api/score', methods=['POST'])
-@login_required
-def trigger_scoring():
-    threading.Thread(target=score_pending_jobs, daemon=True).start()
-    return jsonify({'ok': True, 'message': 'Scoring queued jobs...'})
-
-
-# ── Companies tab ─────────────────────────────────────────────────────────────
+# ── Companies ─────────────────────────────────────────────────────────────────
 @app.route('/companies')
 @login_required
 def companies():
-    from datetime import datetime
-    from settings_db import get_grace_days
-    grace = get_grace_days()
-    def days_since(dt_str):
-        if not dt_str: return 0
-        try:
-            return (datetime.now() - datetime.fromisoformat(dt_str)).days
-        except: return 0
+    active = get_active_companies()
+    watching = get_watching_companies()
+    rejected = get_auto_rejected_companies()
+    stats = get_stats()
     return render_template('companies.html',
-        active_companies   = get_active_companies(),
-        watching_companies = get_watching_companies(),
-        rejected_companies = get_auto_rejected_companies(),
-        stats              = get_company_stats(),
-        grace_days         = grace,
-        now                = datetime.now().isoformat()
+        active_companies=active,
+        watching_companies=watching,
+        rejected_companies=rejected,
+        stats=stats
     )
 
-@app.route('/api/scan/company/<int:company_id>', methods=['POST'])
+@app.route('/api/restore-company/<int:company_id>', methods=['POST'])
 @login_required
-def scan_single_company(company_id):
-    threading.Thread(target=run_company_scan, args=(company_id,), daemon=True).start()
-    return jsonify({'ok': True})
-
-@app.route('/api/company/restore', methods=['POST'])
-@login_required
-def restore_company_route():
-    company_id = request.get_json().get('id')
+def api_restore_company(company_id):
     restore_company(company_id)
     return jsonify({'ok': True})
 
-# ── Resumes ───────────────────────────────────────────────────────────────────
-@app.route('/resumes/<filename>')
+# ── Async Triggers ───────────────────────────────────────────────────────────
+@app.route('/api/trigger-scan', methods=['POST'])
 @login_required
-def serve_resume(filename):
-    return send_from_directory(os.path.join(app.root_path, 'resumes'), filename, as_attachment=True)
+def trigger_scan():
+    """Manually trigger a company scan."""
+    try:
+        results = run_scrape(discover=True)
+        total_new = sum(r.get('new', 0) for r in results)
+        score_pending_jobs()
+        return jsonify({'ok': True, 'companies': len(results), 'new_jobs': total_new})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
-def get_resume_list():
-    d = os.path.join(app.root_path, 'resumes')
-    if not os.path.exists(d): return []
-    files = []
-    for f in os.listdir(d):
-        if f.endswith(('.docx','.pdf')):
-            label = f.replace('_',' ').replace('.docx','').replace('.pdf','')
-            tag   = 'Security' if 'Security' in f else 'Support / Dev' if 'v2' in f else 'General'
-            files.append({'filename': f, 'label': label, 'tag': tag})
-    return files
+@app.route('/api/trigger-score', methods=['POST'])
+@login_required
+def trigger_score():
+    """Manually trigger job scoring."""
+    try:
+        score_pending_jobs()
+        return jsonify({'ok': True, 'message': 'Jobs scored'})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
+@app.route('/api/trigger-suggestions', methods=['POST'])
+@login_required
+def trigger_suggestions():
+    """Manually trigger company suggestions."""
+    try:
+        added = run_suggestion_pipeline()
+        return jsonify({'ok': True, 'suggestions_added': added})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
-# ── Extension API endpoints ───────────────────────────────────────────────────
-def add_cors_headers(response):
-    """Allow Chrome extension to call Flask APIs."""
-    response.headers['Access-Control-Allow-Origin']      = '*'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
-    response.headers['Access-Control-Allow-Headers']     = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Methods']     = 'GET, POST, OPTIONS'
-    return response
+# ── Extension API ─────────────────────────────────────────────────────────────
+@app.route('/api/ping', methods=['GET', 'OPTIONS'])
+def api_ping():
+    """Health check for Chrome extension."""
+    if request.method == 'OPTIONS':
+        return '', 204
+    return jsonify({'status': 'ok', 'version': '1.0'})
 
-@app.after_request
-def after_request(response):
-    return add_cors_headers(response)
-
-@app.route('/api/ping')
-def ping():
-    """Health check for extension."""
-    return jsonify({'ok': True, 'version': '1.0'})
-
-@app.route('/api/profile')
+@app.route('/api/profile', methods=['GET', 'OPTIONS'])
 @login_required
 def api_profile():
     """Return full profile as JSON for the Chrome extension."""
+    if request.method == 'OPTIONS':
+        return '', 204
     return jsonify(get_profile())
 
-# ── Boot ──────────────────────────────────────────────────────────────────────
-if __name__ == '__main__':
-    init_db()
-    init_queue_tables()
-    init_profile_tables()
-    init_settings()
-    init_approved_companies()
-    print('\n  JobWatch → http://localhost:5050\n')
-    app.run(debug=False, host='127.0.0.1', port=5050)
-
 # ── Cover letter generator ────────────────────────────────────────────────────
-@app.route('/api/cover-letter', methods=['POST'])
+@app.route('/api/cover-letter', methods=['POST', 'OPTIONS'])
 @login_required
 def generate_cover_letter():
-    import sqlite3
+    if request.method == 'OPTIONS':
+        return '', 204
+    
     data        = request.get_json()
     job_desc    = data.get('job_description', '').strip()
     resume_ver  = data.get('resume_version', 'A')
@@ -401,8 +328,8 @@ Return only the cover letter text, nothing else."""
 def save_job_from_extension():
     if request.method == 'OPTIONS':
         return '', 204
+    
     # Allow unauthenticated saves from extension as long as token matches
-    import sqlite3
     data    = request.get_json()
     token   = data.get('token','')
     ext_tok = os.environ.get('EXTENSION_TOKEN', 'jobwatch-local')
@@ -417,90 +344,79 @@ def save_job_from_extension():
     if not url:
         return jsonify({'ok': False, 'error': 'No URL provided'})
 
-    db = os.path.join(app.root_path, 'jobwatch.db')
-    conn = sqlite3.connect(db)
-    existing = conn.execute('SELECT id FROM web_saves WHERE url=?', (url,)).fetchone()
-    if existing:
-        conn.close()
+    is_new = save_web_job(title, company, url, desc)
+    if not is_new:
         return jsonify({'ok': True, 'status': 'already_saved', 'message': 'Already in your list'})
-    conn.execute(
-        'INSERT INTO web_saves (title, company, url, description) VALUES (?,?,?,?)',
-        (title, company, url, desc)
-    )
-    conn.commit()
-    # Get total unseen count for badge
-    count = conn.execute("SELECT COUNT(*) FROM web_saves WHERE status='saved'").fetchone()[0]
-    conn.close()
+    
+    count = get_web_saves_count()
     return jsonify({'ok': True, 'status': 'saved', 'pending_count': count})
 
-@app.route('/api/web-saves')
+@app.route('/api/web-saves', methods=['GET', 'OPTIONS'])
 @login_required
-def get_web_saves():
-    import sqlite3
-    db   = os.path.join(app.root_path, 'jobwatch.db')
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT * FROM web_saves ORDER BY saved_at DESC"
-    ).fetchall()
-    conn.close()
+def get_web_saves_api():
+    if request.method == 'OPTIONS':
+        return '', 204
+    
     from suggestions import get_age_badge, should_archive
-    saves = []
-    settings = get_settings()
-    archive_days = int(settings.get('archive_after_days', 14))
-    for r in rows:
-        job = dict(r)
-        badge = get_age_badge(job['saved_at'])
-        job['age_emoji']  = badge[0]
-        job['age_class']  = badge[1]
-        job['age_label']  = badge[2]
-        job['is_stale']   = should_archive(job['saved_at'], archive_days)
-        saves.append(job)
-    return jsonify(saves)
-
-@app.route('/api/web-saves/<int:save_id>', methods=['POST'])
-@login_required
-def update_web_save(save_id):
-    import sqlite3
-    status = request.get_json().get('status')
-    if status not in ('saved', 'applied', 'rejected', 'archived'):
-        return jsonify({'ok': False}), 400
-    db = os.path.join(app.root_path, 'jobwatch.db')
-    conn = sqlite3.connect(db)
-    conn.execute('UPDATE web_saves SET status=? WHERE id=?', (status, save_id))
-    conn.commit()
-    conn.close()
-    return jsonify({'ok': True})
-
-@app.route('/api/badge-count')
-def badge_count():
-    """Returns pending count for extension badge — no auth needed."""
-    import sqlite3
-    db   = os.path.join(app.root_path, 'jobwatch.db')
-    conn = sqlite3.connect(db)
-    count = conn.execute("SELECT COUNT(*) FROM web_saves WHERE status='saved'").fetchone()[0]
-    conn.close()
-    return jsonify({'count': count})
-
-@app.route('/saved-jobs')
-@login_required
-def saved_jobs_page():
-    import sqlite3
-    from suggestions import get_age_badge, should_archive
-    db   = os.path.join(app.root_path, 'jobwatch.db')
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute("SELECT * FROM web_saves ORDER BY saved_at DESC").fetchall()
-    conn.close()
     settings     = get_settings()
     archive_days = int(settings.get('archive_after_days', 14))
+    
     saves = []
-    for r in rows:
-        job = dict(r)
+    for job in get_web_saves():
         badge = get_age_badge(job['saved_at'])
         job['age_emoji'] = badge[0]
         job['age_class'] = badge[1]
         job['age_label'] = badge[2]
         job['is_stale']  = should_archive(job['saved_at'], archive_days)
         saves.append(job)
+    
+    return jsonify(saves)
+
+@app.route('/api/web-saves/<int:save_id>', methods=['POST', 'OPTIONS'])
+@login_required
+def update_web_save(save_id):
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    data = request.get_json()
+    status = data.get('status', 'saved')
+    update_web_save_status(save_id, status)
+    return jsonify({'ok': True})
+
+@app.route('/api/badge-count', methods=['GET', 'OPTIONS'])
+def api_badge_count():
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    # Extension can call this without auth to get unseen count
+    web_saves = get_web_saves()
+    count = len(web_saves) if web_saves else 0
+    return jsonify({'count': count})
+
+@app.route('/saved-jobs')
+@login_required
+def saved_jobs_page():
+    from suggestions import get_age_badge, should_archive
+    settings     = get_settings()
+    archive_days = int(settings.get('archive_after_days', 14))
+    
+    saves = []
+    for r in get_web_saves():
+        badge = get_age_badge(r['saved_at'])
+        r['age_emoji'] = badge[0]
+        r['age_class'] = badge[1]
+        r['age_label'] = badge[2]
+        r['is_stale']  = should_archive(r['saved_at'], archive_days)
+        saves.append(r)
+    
     return render_template('saved_jobs.html', saves=saves)
+
+# ── Boot ──────────────────────────────────────────────────────────────────────
+if __name__ == '__main__':
+    init_db()
+    init_queue_tables()
+    init_profile_tables()
+    init_settings()
+    init_approved_companies()
+    print('\n  JobWatch → http://localhost:5050\n')
+    app.run(debug=False, host='127.0.0.1', port=5050)
