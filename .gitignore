@@ -1,0 +1,25 @@
+# Environment variables — NEVER commit these
+.env
+
+# Database (local only)
+jobwatch.db
+*.db
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Logs
+*.log
+app_boot.log
+
+# OS junk
+.DS_Store
+Thumbs.db
