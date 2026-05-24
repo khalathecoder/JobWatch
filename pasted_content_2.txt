@@ -1,0 +1,51 @@
+  [STATIC/WORKDAY] Elevance Health
+127.0.0.1 - - [24/May/2026 10:31:37] "GET / HTTP/1.1" 200 -
+  [STATIC/WORKDAY] Humana
+  [STATIC/WORKDAY] UnitedHealth / Optum
+127.0.0.1 - - [24/May/2026 10:31:40] "GET / HTTP/1.1" 200 -
+  [STATIC/WORKDAY] Cleveland Clinic
+127.0.0.1 - - [24/May/2026 10:31:42] "POST /api/scan HTTP/1.1" 200 -
+  [STATIC/WORKDAY] FirstEnergy
+  [STATIC/WORKDAY] Progressive Insurance
+  [STATIC/WORKDAY] KeyBank
+  [STATIC/WORKDAY] Elevance Health
+  [STATIC/HTML] University Hospitals
+  [STATIC/WORKDAY] Humana
+  [STATIC/HTML] MetroHealth
+  HTML error (MetroHealth): HTTPSConnectionPool(host='jobs.metrohealth.org', port=443): Max retries exceeded with url: /search/?q=security (Caused by NameResolutionError("HTTPSConnection(host='jobs.metrohealth.org', port=443): Failed to resolve 'jobs.metrohealth.org' ([Errno 11001] getaddrinfo failed)"))
+  [STATIC/WORKDAY] UnitedHealth / Optum
+  [STATIC/WORKDAY] FirstEnergy
+  [STATIC/WORKDAY] KeyBank
+  [STATIC/HTML] University Hospitals
+  [STATIC/HTML] MetroHealth
+  HTML error (MetroHealth): HTTPSConnectionPool(host='jobs.metrohealth.org', port=443): Max retries exceeded with url: /search/?q=security (Caused by NameResolutionError("HTTPSConnection(host='jobs.metrohealth.org', port=443): Failed to resolve 'jobs.metrohealth.org' ([Errno 11001] getaddrinfo failed)"))
+127.0.0.1 - - [24/May/2026 10:32:20] "GET /?status=all&keyword=&company=all&age=archived HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 10:32:22] "GET /?status=all&keyword=&company=all&age=week HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 10:32:22] "GET /?status=all&keyword=&company=all&age=fire HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 10:32:23] "GET /?status=all&keyword=&company=all&age=all HTTP/1.1" 200 -
+[2026-05-24 10:33:29,536] ERROR in app: Exception on /companies [GET]
+Traceback (most recent call last):
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\app.py", line 261, in companies
+    rejected_companies = get_auto_rejected_companies(),
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\database.py", line 523, in get_auto_rejected_companies
+    rows = conn.execute(
+           ~~~~~~~~~~~~^
+        "SELECT * FROM company_suggestions WHERE status='auto_rejected' ORDER BY last_scanned DESC"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).fetchall()
+    ^
+sqlite3.OperationalError: no such column: last_scanned
+127.0.0.1 - - [24/May/2026 10:33:29] "GET /companies HTTP/1.1" 500 -

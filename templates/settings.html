@@ -1,116 +1,131 @@
-{% extends 'base.html' %}
-{% block title %}JobWatch — Settings{% endblock %}
+{% extends "base.html" %}
+{% block title %}Settings — JobWatch{% endblock %}
+
 {% block extra_styles %}
-<style>
-  .settings-wrap { max-width: 720px; margin: 0 auto; padding: 32px 24px; }
-  .settings-header { margin-bottom: 28px; }
-  .settings-header h1 { font-size: 22px; font-weight: 600; }
-  .settings-header p  { color: var(--muted); font-size: 13px; margin-top: 4px; }
-  .s-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin-bottom: 20px; }
-  .s-card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-family: var(--mono); margin-bottom: 18px; }
-  .s-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .s-group { display: flex; flex-direction: column; gap: 5px; }
-  .s-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-family: var(--mono); }
-  .s-group input, .s-group textarea { padding: 9px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: var(--sans); font-size: 13px; outline: none; transition: border-color 0.15s; resize: vertical; }
-  .s-group input:focus, .s-group textarea:focus { border-color: var(--accent); }
-  .hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
-  .sectors-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-  .sector-chip { padding: 6px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; color: var(--muted); font-size: 12px; cursor: pointer; transition: all 0.15s; user-select: none; }
-  .sector-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .save-btn { margin-top: 18px; padding: 9px 24px; background: var(--accent); border: none; border-radius: 6px; color: #fff; font-family: var(--sans); font-size: 13px; cursor: pointer; }
-  .save-btn:hover { background: var(--accent2); }
-  .saved-banner { background: #1a3a22; border: 1px solid #2a5a32; color: var(--new); padding: 10px 16px; border-radius: 6px; font-size: 13px; margin-bottom: 20px; }
-  .api-status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-family: var(--mono); }
-  .api-ok   { background: #1a3a22; color: var(--new); }
-  .api-miss { background: #3a1010; color: var(--rejected); }
-</style>
-{% endblock %}
-{% block content %}
-<div class="topbar">
-  <div class="topbar-brand">Job<span>Watch</span> — Settings</div>
-  <div class="topbar-right">
-    <a href="/" class="btn btn-sm">← Dashboard</a>
-    <a href="/logout" class="btn btn-sm">Sign out</a>
-  </div>
-</div>
-<div class="settings-wrap">
-  <div class="settings-header">
-    <h1>Settings</h1>
-    <p>Control what gets scraped, scored, and surfaced in your dashboard.</p>
-  </div>
-  {% if saved %}<div class="saved-banner">✓ Settings saved.</div>{% endif %}
-  <div class="s-card">
-    <h2>Anthropic API</h2>
-    {% if api_key_set %}
-    <span class="api-status api-ok">✓ API key detected — Claude scoring active</span>
-    {% else %}
-    <span class="api-status api-miss">✗ No API key — add ANTHROPIC_API_KEY to .env</span>
-    {% endif %}
-    <p class="hint" style="margin-top:10px">Required for company suggestions and job scoring.</p>
-  </div>
-  <form method="POST">
-    <div class="s-card">
-      <h2>Filters & Thresholds</h2>
-      <div class="s-grid">
-        <div class="s-group">
-          <label>Auto-archive after (days)</label>
-          <input type="number" name="archive_after_days" value="{{ settings.archive_after_days }}" min="1" max="90">
-          <span class="hint">Jobs older than this leave your active view.</span>
-        </div>
-        <div class="s-group">
-          <label>Minimum job score to surface (1-10)</label>
-          <input type="number" name="score_threshold" value="{{ settings.score_threshold }}" min="1" max="10">
-          <span class="hint">Jobs scoring below this won't appear in your queue.</span>
-        </div>
-        
-        <div class="s-group">
-          <label>Company grace period (days)</label>
-          <input type="number" name="company_grace_days" value="{{ settings.company_grace_days or '14' }}" min="7" max="60">
-          <span class="hint">Companies with no relevant listings after this many days are auto-rejected.</span>
-        </div>
-        <div class="s-group">
-          <label>Company suggestion interval (days)</label>
-          <input type="number" name="suggestion_interval" value="{{ settings.suggestion_interval }}" min="1" max="14">
-          <span class="hint">How often Claude suggests new companies.</span>
-        </div>
-      </div>
-    </div>
-    <div class="s-card">
-      <h2>Target Sectors</h2>
-      <p class="hint" style="margin-bottom:14px">Claude suggests companies from these sectors.</p>
-      <div class="sectors-grid">
-        {% set active_sectors = settings.sectors.split(',') %}
-        {% for sector in ['healthcare','financial','utilities','insurance','government','tech','consulting','manufacturing','education'] %}
-        <div class="sector-chip {% if sector in active_sectors %}selected{% endif %}"
-             onclick="toggleSector(this)">{{ sector }}</div>
-        {% endfor %}
-      </div>
-      <input type="hidden" name="sectors" id="sectorsInput" value="{{ settings.sectors }}">
-    </div>
-    <div class="s-card">
-      <h2>Keyword Filters</h2>
-      <div class="s-grid">
-        <div class="s-group">
-          <label>Must match (any) — one per line</label>
-          <textarea name="must_match" rows="8">{{ settings.must_match.replace(',', '\n') }}</textarea>
-          <span class="hint">Job title must contain at least one of these.</span>
-        </div>
-        <div class="s-group">
-          <label>Exclude (any) — one per line</label>
-          <textarea name="exclude" rows="8">{{ settings.exclude.replace(',', '\n') }}</textarea>
-          <span class="hint">Skip any job containing these terms.</span>
-        </div>
-      </div>
-    </div>
-    <button type="submit" class="save-btn">Save Settings</button>
-  </form>
-</div>
-<script>
-function toggleSector(el) {
-  el.classList.toggle('selected');
-  document.getElementById('sectorsInput').value =
-    Array.from(document.querySelectorAll('.sector-chip.selected'))
-         .map(e => e.textContent.trim()).join(',');
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+@media (max-width: 768px) { .settings-grid { grid-template-columns: 1fr; } }
+
+.field-group { margin-bottom: 1.25rem; }
+label { display: block; font-size: .85rem; font-weight: 600; color: var(--text); margin-bottom: .4rem; }
+label span { color: var(--text-muted); font-weight: 400; font-size: .8rem; margin-left: .3rem; }
+input[type="text"], input[type="number"], textarea, select {
+  width: 100%;
+  padding: .6rem .85rem;
+  border: 1.5px solid var(--border);
+  border-radius: .5rem;
+  font-size: .875rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .2s;
+  background: white;
 }
-</script>
+input:focus, textarea:focus, select:focus { border-color: var(--primary); }
+textarea { resize: vertical; min-height: 100px; }
+.hint { font-size: .78rem; color: var(--text-muted); margin-top: .3rem; }
+
+.save-bar {
+  display: flex; align-items: center; gap: 1rem;
+  padding-top: 1rem; border-top: 1px solid var(--border); margin-top: 1.5rem;
+}
+.saved-msg { color: var(--success); font-size: .875rem; font-weight: 600; }
+
+.api-status {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .65rem 1rem;
+  border-radius: .5rem;
+  font-size: .875rem; font-weight: 600;
+}
+.api-status.ok  { background: #dcfce7; color: #15803d; }
+.api-status.missing { background: #fee2e2; color: #b91c1c; }
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title">Settings</div>
+</div>
+
+<form method="POST">
+  <div class="settings-grid">
+    <!-- Left column -->
+    <div class="card">
+      <h3 style="font-weight:700;margin-bottom:1.25rem;">Scoring & Archive</h3>
+
+      <div class="field-group">
+        <label>Score threshold <span>(jobs below this score are hidden)</span></label>
+        <input type="number" name="score_threshold" min="1" max="10"
+               value="{{ settings.score_threshold or 6 }}">
+      </div>
+
+      <div class="field-group">
+        <label>Archive after <span>(days)</span></label>
+        <input type="number" name="archive_after_days" min="1"
+               value="{{ settings.archive_after_days or 14 }}">
+        <div class="hint">Jobs older than this are hidden from the main view.</div>
+      </div>
+
+      <div class="field-group">
+        <label>Company grace period <span>(days)</span></label>
+        <input type="number" name="company_grace_days" min="1"
+               value="{{ settings.company_grace_days or 14 }}">
+        <div class="hint">Auto-reject companies that show no relevant jobs after this many days.</div>
+      </div>
+
+      <div class="field-group">
+        <label>Suggestion interval <span>(days)</span></label>
+        <input type="number" name="suggestion_interval" min="1"
+               value="{{ settings.suggestion_interval or 2 }}">
+      </div>
+
+      <div class="field-group">
+        <label>Target sectors</label>
+        <input type="text" name="sectors"
+               value="{{ settings.sectors or 'healthcare,financial,utilities,insurance,government,tech' }}">
+        <div class="hint">Comma-separated. Used when generating company suggestions.</div>
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="card">
+      <h3 style="font-weight:700;margin-bottom:1.25rem;">Keyword Filters</h3>
+
+      <div class="field-group">
+        <label>Must-match keywords <span>(one per line)</span></label>
+        <textarea name="must_match">{% for kw in (settings.must_match or '').split(',') %}{{ kw.strip() }}
+{% endfor %}</textarea>
+        <div class="hint">Jobs must contain at least one of these to be queued.</div>
+      </div>
+
+      <div class="field-group">
+        <label>Exclude keywords <span>(one per line)</span></label>
+        <textarea name="exclude">{% for kw in (settings.exclude or '').split(',') %}{{ kw.strip() }}
+{% endfor %}</textarea>
+        <div class="hint">Jobs with these keywords in the title are discarded immediately.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- API status -->
+  <div class="card" style="margin-top:1.5rem;">
+    <h3 style="font-weight:700;margin-bottom:1rem;">API Status</h3>
+    <div class="api-status {{ 'ok' if api_key_set else 'missing' }}">
+      {% if api_key_set %}
+        ✅ Anthropic API key detected — scoring and suggestions are enabled
+      {% else %}
+        ❌ No ANTHROPIC_API_KEY in .env — scoring and suggestions are disabled
+      {% endif %}
+    </div>
+    {% if not api_key_set %}
+    <p class="hint" style="margin-top:.75rem;">
+      Add <code>ANTHROPIC_API_KEY=sk-ant-...</code> to your <code>.env</code> file and restart the app.
+    </p>
+    {% endif %}
+  </div>
+
+  <div class="save-bar">
+    <button type="submit" class="btn btn-primary">Save Settings</button>
+    {% if saved %}
+    <span class="saved-msg">✓ Saved!</span>
+    {% endif %}
+  </div>
+</form>
 {% endblock %}

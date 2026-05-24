@@ -1,0 +1,79 @@
+Here's the full picture:
+✅ Built & Shipped
+Core App
+
+Login-protected Flask dashboard at localhost:5050
+Windows Task Scheduler setup — scheduler runs every 2 days, dashboard auto-starts on login
+SQLite database — jobs, companies, queue, profile, preferences, web saves
+
+Scraping
+
+Workday JSON API (7 companies — CCF, Progressive, Elevance, Humana, Optum, FirstEnergy, KeyBank)
+Greenhouse + Lever public APIs with description capture
+HTML fallback for iCIMS and custom pages
+ATS auto-detection from careers URL
+Location filter — remote nationwide OR 50mi Cleveland radius
+Title pre-filter — blocks non-SW disciplines and C-suite
+Must-match and exclude keyword lists (configurable in Settings)
+
+Company Pipeline
+
+Claude suggests companies every 2 days across configurable sectors (web search enabled)
+Approval queue — you approve/reject in dashboard
+On approval → immediate scan fires in background
+Watchlist with grace period — auto-rejects companies with no relevant listings after 14 days
+Companies tab — Active / Watching / Auto-rejected views with grace period progress bar
+
+Job Queue
+
+Jobs go through approval queue before hitting dashboard
+Claude scores each job 1-10 using description + your profile + preference history
+Configurable score threshold in Settings
+Age badges — 🔥 48hrs / 🟢 7 days / 🟡 14 days / 🔴 30 days / 👻 archived
+Auto-archive based on configurable threshold
+Claude learns from every approve/reject decision
+
+Autofill Sidebar (Flask version)
+
+Slides in from right on any job card
+Resume A / B toggle
+All profile fields one-click copyable — name, email, phone, location, LinkedIn, GitHub
+Every job experience with dates, per-bullet copy (plain / bullet / HTML)
+Cover letter generator — 2 paragraphs, pulls passion statement, tailored to job description
+
+Chrome Extension
+
+⚡ floating button — opens autofill sidebar on any page
+＋ floating button — Save to JobWatch from any job page
+Auto-reads job description from page DOM (15+ ATS selectors)
+Resume A/B toggle
+All autofill fields + cover letter generator
+Badge count — red number shows pending saved jobs
+Badge refreshes every 5 minutes via background alarm
+Popup with connection status + dashboard/profile links
+
+Saved Jobs Page
+
+Jobs saved via extension land here
+Staleness banner for 14+ day old jobs
+Fresh / Stale / Applied / Archived filters
+One-click mark applied or archive
+
+Profile
+
+Full profile editing at /profile
+Personal info, summaries A/B, passion statement, all experience entries editable
+Experience pre-seeded from resume
+
+Settings
+
+Archive threshold, score threshold, suggestion interval, grace period
+Sector toggles (chip UI)
+Must-match and exclude keyword lists
+
+
+⚠️ Known Gaps
+GapNotesiCIMS scraper is weakUniversity Hospitals + MetroHealth use iCIMS — HTML fallback is fragileGreenhouse/Lever dynamic companiesBoard token extraction from URL needs testing on real approved companiescompany_pipeline.pyOrphaned file in the project — likely a stale duplicate, should be cleaned upProfile updates don't reflect in sidebar without restartProfile cache in extension only refreshes on new page loadNo email/phone in profileSensitive fields — need to be filled manually at /profileCONTEXT.md needs updatingHasn't been updated since early in the build
+
+🔜 Backlog (discussed but not built)
+FeaturePriorityProper iCIMS API integrationHigh — UH is your top targetMatch score on job cards (% fit)MediumResume A/B auto-recommend per jobMediumCONTEXT.md refreshLow — do before next Claude Code session

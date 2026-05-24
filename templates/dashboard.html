@@ -1,537 +1,480 @@
-{% extends 'base.html' %}
-{% block title %}JobWatch — Dashboard{% endblock %}
+{% extends "base.html" %}
+{% block title %}Dashboard — JobWatch{% endblock %}
+
 {% block extra_styles %}
-<style>
-  .topbar-scan { display: flex; align-items: center; gap: 8px; }
-  .scan-select {
-    padding: 5px 10px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 12px;
-    outline: none;
-  }
+/* ── Stats ───────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: transform .2s, box-shadow .2s;
+}
+.stat-card:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+.stat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.stat-card:nth-child(1)::before { background: linear-gradient(90deg, #6366f1, #ec4899); }
+.stat-card:nth-child(2)::before { background: linear-gradient(90deg, #f59e0b, #f97316); }
+.stat-card:nth-child(3)::before { background: linear-gradient(90deg, #10b981, #06b6d4); }
+.stat-card:nth-child(4)::before { background: linear-gradient(90deg, #ec4899, #ef4444); }
+.stat-card:nth-child(5)::before { background: linear-gradient(90deg, #8b5cf6, #6366f1); }
+.stat-label { font-size: .75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+.stat-value { font-size: 2rem; font-weight: 800; margin-top: .25rem; }
 
-  /* Stats bar */
-  .stats-bar {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-  }
-  .stat-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 100px;
-  }
-  .stat-num {
-    font-family: var(--mono);
-    font-size: 24px;
-    font-weight: 500;
-    color: var(--text);
-  }
-  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-  .stat-card.accent .stat-num { color: var(--new); }
-  .stat-scan { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: auto; align-self: center; }
+/* ── Queue banner ────────────────────────── */
+.queue-banner {
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  color: white;
+  border-radius: var(--radius);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+.queue-banner h3 { font-size: 1rem; font-weight: 600; }
+.queue-banner p  { font-size: .825rem; color: #94a3b8; margin-top: .1rem; }
+.queue-banner-actions { display: flex; gap: .6rem; flex-shrink: 0; }
 
-  /* Layout */
-  .layout { display: flex; gap: 20px; }
-  .sidebar {
-    width: 220px;
-    flex-shrink: 0;
-  }
-  .main { flex: 1; min-width: 0; }
+/* ── Queue panel ─────────────────────────── */
+.queue-panel { display: none; margin-bottom: 1.75rem; }
+.queue-panel.open { display: block; }
 
-  /* Sidebar filters */
-  .filter-section { margin-bottom: 20px; }
-  .filter-label {
-    font-size: 10px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-family: var(--mono);
-    margin-bottom: 8px;
-    display: block;
-  }
-  .filter-btn {
-    display: block;
-    width: 100%;
-    padding: 7px 12px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    color: var(--muted);
-    font-family: var(--sans);
-    font-size: 13px;
-    text-align: left;
-    cursor: pointer;
-    transition: all 0.1s;
-    margin-bottom: 2px;
-    text-decoration: none;
-  }
-  .filter-btn:hover { background: var(--card); color: var(--text); text-decoration: none; }
-  .filter-btn.active { background: var(--card); border-color: var(--border); color: var(--text); }
-  .filter-btn .count {
-    float: right;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-  }
+.queue-tabs {
+  display: flex;
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+.queue-tab {
+  padding: .45rem 1rem;
+  border-radius: .4rem;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all .2s;
+}
+.queue-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-  /* Search */
-  .search-wrap { margin-bottom: 16px; position: relative; }
-  .search-wrap input {
-    width: 100%;
-    padding: 9px 12px 9px 36px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  .search-wrap input:focus { border-color: var(--accent); }
-  .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 15px; }
+.queue-list { display: flex; flex-direction: column; gap: .75rem; }
 
-  /* Job cards */
-  .job-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px 18px;
-    margin-bottom: 10px;
-    transition: border-color 0.15s;
-    position: relative;
-  }
-  .job-card:hover { border-color: var(--accent); }
-  .job-card.unseen { border-left: 3px solid var(--new); }
-  .job-card-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 8px;
-  }
-  .job-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text);
-    line-height: 1.3;
-  }
-  .job-company {
-    font-size: 13px;
-    color: var(--accent);
-    margin-top: 2px;
-  }
-  .job-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 8px;
-    flex-wrap: wrap;
-  }
-  .job-meta span {
-    font-size: 12px;
-    color: var(--muted);
-    font-family: var(--mono);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .job-keywords {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 10px;
-  }
-  .kw-tag {
-    font-size: 11px;
-    font-family: var(--mono);
-    background: var(--card);
-    border: 1px solid var(--border);
-    color: var(--muted);
-    padding: 2px 8px;
-    border-radius: 4px;
-  }
-  .job-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 12px;
-    flex-wrap: wrap;
-  }
+.queue-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: .6rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.queue-item-info { flex: 1; min-width: 0; }
+.queue-item-title { font-weight: 600; font-size: .95rem; }
+.queue-item-sub   { font-size: .8rem; color: var(--text-muted); margin-top: .2rem; }
+.queue-item-desc  { font-size: .8rem; color: var(--text-muted); margin-top: .35rem; line-height: 1.4;
+                    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.queue-score {
+  font-size: .85rem; font-weight: 700;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  white-space: nowrap;
+}
+.queue-actions { display: flex; gap: .5rem; align-items: center; flex-shrink: 0; }
 
-  /* Status selector */
-  .status-select {
-    padding: 4px 8px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 11px;
-    outline: none;
-    cursor: pointer;
-  }
+/* ── Filter bar ──────────────────────────── */
+.filter-bar {
+  display: flex;
+  gap: .6rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+.filter-tab {
+  padding: .4rem .9rem;
+  border-radius: 9999px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: .83rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all .2s;
+}
+.filter-tab:hover { border-color: var(--primary); color: var(--primary); }
+.filter-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-  /* Resume picker modal */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(4px);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 28px;
-    width: 480px;
-    max-width: 95vw;
-  }
-  .modal-title {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-  .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; font-family: var(--mono); }
-  .resume-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px 16px;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    transition: border-color 0.15s;
-    text-decoration: none;
-  }
-  .resume-card:hover { border-color: var(--accent); text-decoration: none; }
-  .resume-card-left { display: flex; align-items: center; gap: 12px; }
-  .resume-icon { font-size: 22px; }
-  .resume-name { font-size: 14px; font-weight: 500; color: var(--text); }
-  .resume-tag {
-    font-size: 11px;
-    font-family: var(--mono);
-    color: var(--muted);
-    margin-top: 2px;
-  }
-  .modal-close {
-    width: 100%;
-    margin-top: 12px;
-    padding: 9px;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--muted);
-    font-family: var(--sans);
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .modal-close:hover { color: var(--text); border-color: var(--text); }
+.filter-search {
+  margin-left: auto;
+  display: flex;
+  gap: .5rem;
+}
+.filter-search input {
+  padding: .4rem .85rem;
+  border: 1.5px solid var(--border);
+  border-radius: 9999px;
+  font-size: .85rem;
+  outline: none;
+  transition: border-color .2s;
+}
+.filter-search input:focus { border-color: var(--primary); }
 
-  /* Toast */
-  .toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 18px;
-    font-size: 13px;
-    color: var(--text);
-    z-index: 2000;
-    display: none;
-    font-family: var(--mono);
-  }
-  .toast.show { display: block; animation: slideUp 0.2s ease; }
-  @keyframes slideUp { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+/* ── Job cards ───────────────────────────── */
+.jobs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+.job-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  transition: all .25s cubic-bezier(.34,1.56,.64,1);
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  position: relative;
+  overflow: hidden;
+}
+.job-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0,0,0,.1);
+  border-color: var(--primary);
+}
+.job-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+.job-title { font-weight: 700; font-size: 1rem; color: var(--text); line-height: 1.3; }
+.job-company { font-size: .8rem; color: var(--text-muted); margin-top: .15rem; font-weight: 500; }
+.job-score-badge {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  padding: .25rem .6rem;
+  border-radius: .4rem;
+  font-size: .78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.job-description {
+  font-size: .82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.job-meta {
+  display: flex;
+  gap: .75rem;
+  font-size: .78rem;
+  color: var(--text-muted);
+  padding-top: .5rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.job-actions {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.job-actions .btn { flex: 1; justify-content: center; }
 
-  .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--muted);
-  }
-  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
-  .empty-state p { font-size: 14px; margin-bottom: 16px; }
+.status-new      { background: #dbeafe; color: #1d4ed8; }
+.status-saved    { background: #dcfce7; color: #15803d; }
+.status-applied  { background: #fef9c3; color: #a16207; }
+.status-rejected { background: #fee2e2; color: #b91c1c; }
 
-  .age-filter-bar { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
-  .age-btn { padding: 5px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; color: var(--muted); font-size: 12px; font-family: var(--mono); text-decoration: none; transition: all 0.15s; }
-  .age-btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
-  .age-btn.active { background: var(--card); border-color: var(--accent); color: var(--text); }
-  .age-badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: var(--mono); }
-  .age-fire   { background: #3a1a00; color: #ff8c42; border: 1px solid #6a3010; }
-  .age-fresh  { background: #1a3a22; color: var(--new); border: 1px solid #2a5a32; }
-  .age-recent { background: #3a2f10; color: var(--saved); border: 1px solid #5a4a20; }
-  .age-aging  { background: #3a1010; color: var(--rejected); border: 1px solid #6a2020; }
-  .age-stale  { background: #1a1a2a; color: var(--muted); border: 1px solid #2a2a3a; }
-  .age-unknown { background: var(--card); color: var(--muted); border: 1px solid var(--border); }
-
-</style>
+.empty-state {
+  text-align: center; padding: 5rem 2rem; color: var(--text-muted);
+}
+.empty-state-icon { font-size: 3rem; margin-bottom: 1rem; }
+.empty-state h3 { font-size: 1.25rem; color: var(--text); margin-bottom: .5rem; }
 {% endblock %}
-{% block content %}
 
-<div class="topbar">
-  <div class="topbar-brand">Job<span>Watch</span></div>
-  <div class="topbar-right">
-    <div class="topbar-scan">
-      <select class="scan-select" id="scanTarget">
-        <option value="">All Companies</option>
-        {% for t in all_targets %}
-        <option value="{{ t }}">{{ t }}</option>
-        {% endfor %}
-      </select>
-      <button class="btn btn-primary btn-sm" onclick="triggerScan()">⟳ Scan</button>
-      <button class="btn btn-sm" onclick="triggerSuggest()">✨ Suggest Companies</button>
-    </div>
-    <span class="muted">{{ stats.last_scan[:16] if stats.last_scan != 'Never' else 'Never scanned' }}</span>
-    <a href="/companies" class="btn btn-sm">🏢 Companies</a>
-    <a href="/saved-jobs" class="btn btn-sm">🔖 Saved Jobs</a>
-    <a href="/settings" class="btn btn-sm">⚙ Settings</a>
-    <a href="/logout" class="btn btn-sm">Sign out</a>
+{% block content %}
+<!-- Header -->
+<div class="page-header">
+  <div class="page-title">Dashboard</div>
+  <div class="page-actions">
+    <button class="btn btn-ghost" onclick="triggerScan()">🔍 Scan Jobs</button>
+    <button class="btn btn-primary" onclick="triggerScore()">⚡ Score Queue</button>
   </div>
 </div>
 
-<div class="container">
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Jobs</div>
+    <div class="stat-value">{{ stats.total }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">New</div>
+    <div class="stat-value">{{ stats.new }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Applied</div>
+    <div class="stat-value">{{ stats.applied }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Saved</div>
+    <div class="stat-value">{{ stats.saved }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">In Queue</div>
+    <div class="stat-value">{{ stats.pending_jobs }}</div>
+  </div>
+</div>
 
-  <!-- Queue section -->
-  {% include 'queue_section.html' %}
+<!-- Queue banner -->
+{% set total_pending = queue_counts.jobs + queue_counts.companies %}
+{% if total_pending > 0 %}
+<div class="queue-banner">
+  <div>
+    <h3>🔔 {{ total_pending }} item{{ 's' if total_pending != 1 else '' }} pending review</h3>
+    <p>
+      {% if queue_counts.jobs > 0 %}{{ queue_counts.jobs }} job{{ 's' if queue_counts.jobs != 1 else '' }}{% endif %}
+      {% if queue_counts.jobs > 0 and queue_counts.companies > 0 %} · {% endif %}
+      {% if queue_counts.companies > 0 %}{{ queue_counts.companies }} company suggestion{{ 's' if queue_counts.companies != 1 else '' }}{% endif %}
+    </p>
+  </div>
+  <div class="queue-banner-actions">
+    <button class="btn btn-ghost btn-sm" onclick="toggleQueue('jobs')">Review Jobs</button>
+    {% if queue_counts.companies > 0 %}
+    <button class="btn btn-ghost btn-sm" onclick="toggleQueue('companies')">Review Companies</button>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 
-  <!-- Age filter bar -->
-  <div class="age-filter-bar">
-    <a href="{{ url_for('dashboard', status=filters.status, keyword=filters.keyword, company=filters.company, age='all') }}"
-       class="age-btn {% if filters.age == 'all' %}active{% endif %}">All</a>
-    <a href="{{ url_for('dashboard', status=filters.status, keyword=filters.keyword, company=filters.company, age='fire') }}"
-       class="age-btn {% if filters.age == 'fire' %}active{% endif %}">🔥 48hrs</a>
-    <a href="{{ url_for('dashboard', status=filters.status, keyword=filters.keyword, company=filters.company, age='week') }}"
-       class="age-btn {% if filters.age == 'week' %}active{% endif %}">🟢 This Week</a>
-    <a href="{{ url_for('dashboard', status=filters.status, keyword=filters.keyword, company=filters.company, age='archived') }}"
-       class="age-btn {% if filters.age == 'archived' %}active{% endif %}">👻 Archived</a>
+<!-- Queue panel -->
+<div class="queue-panel card" id="queuePanel">
+  <div class="queue-tabs">
+    <button class="queue-tab active" id="tabJobs"      onclick="switchTab('jobs')">
+      Jobs ({{ pending_jobs | length }})
+    </button>
+    <button class="queue-tab"         id="tabCompanies" onclick="switchTab('companies')">
+      Companies ({{ pending_companies | length }})
+    </button>
   </div>
 
-  <!-- Stats -->
-  <div class="stats-bar">
-    <div class="stat-card accent">
-      <div class="stat-num">{{ stats.new }}</div>
-      <div class="stat-label">New</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num">{{ stats.saved }}</div>
-      <div class="stat-label">Saved</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num">{{ stats.applied }}</div>
-      <div class="stat-label">Applied</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num">{{ stats.total }}</div>
-      <div class="stat-label">Total</div>
-    </div>
-  </div>
-
-  <div class="layout">
-
-    <!-- Sidebar -->
-    <div class="sidebar">
-      <div class="filter-section">
-        <span class="filter-label">Status</span>
-        <a href="{{ url_for('dashboard', status='all', keyword=filters.keyword, company=filters.company) }}"
-           class="filter-btn {% if filters.status == 'all' %}active{% endif %}">
-          All Jobs <span class="count">{{ stats.total }}</span>
-        </a>
-        <a href="{{ url_for('dashboard', status='new', keyword=filters.keyword, company=filters.company) }}"
-           class="filter-btn {% if filters.status == 'new' %}active{% endif %}">
-          🟢 New <span class="count">{{ stats.new }}</span>
-        </a>
-        <a href="{{ url_for('dashboard', status='saved', keyword=filters.keyword, company=filters.company) }}"
-           class="filter-btn {% if filters.status == 'saved' %}active{% endif %}">
-          ⭐ Saved <span class="count">{{ stats.saved }}</span>
-        </a>
-        <a href="{{ url_for('dashboard', status='applied', keyword=filters.keyword, company=filters.company) }}"
-           class="filter-btn {% if filters.status == 'applied' %}active{% endif %}">
-          📤 Applied <span class="count">{{ stats.applied }}</span>
-        </a>
-      </div>
-
-      <div class="filter-section">
-        <span class="filter-label">Company</span>
-        <a href="{{ url_for('dashboard', status=filters.status, keyword=filters.keyword, company='all') }}"
-           class="filter-btn {% if filters.company == 'all' %}active{% endif %}">All</a>
-        {% for company in companies %}
-        <a href="{{ url_for('dashboard', status=filters.status, keyword=filters.keyword, company=company) }}"
-           class="filter-btn {% if filters.company == company %}active{% endif %}">
-          {{ company }}
-        </a>
-        {% endfor %}
-      </div>
-
-      <div class="filter-section">
-        <span class="filter-label">Your Resumes</span>
-        {% for r in resumes %}
-        <a href="/resumes/{{ r.filename }}" class="filter-btn" download>
-          📄 {{ r.tag }}
-        </a>
-        {% else %}
-        <span style="font-size:12px; color: var(--muted); display:block; padding: 8px 12px;">
-          Drop .docx files in<br><code style="font-size:11px;">jobwatch/resumes/</code>
-        </span>
-        {% endfor %}
-      </div>
-    </div>
-
-    <!-- Main -->
-    <div class="main">
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" placeholder="Filter by title or keyword..."
-               value="{{ filters.keyword }}" onkeyup="liveFilter()">
-      </div>
-
-      <div id="jobList">
-        {% if jobs %}
-          {% for job in jobs %}
-          <div class="job-card {% if not job.seen %}unseen{% endif %}" id="job-{{ job.id }}"
-               onclick="markSeen({{ job.id }})">
-            <div class="job-card-top">
-              <div>
-                <div class="job-title">{{ job.title }}</div>
-                <div class="job-company">{{ job.company }}</div>
-              </div>
-              <div>
-                <span class="badge badge-{{ job.status }}">{{ job.status }}</span>
-              </div>
-            </div>
-            <div class="job-meta">
-              <span class="age-badge {{ job.age_class }}">{{ job.age_emoji }} {{ job.age_label }}</span>
-              <span>📍 {{ job.location }}</span>
-              {% if job.posted_on %}
-              <span>📅 {{ job.posted_on[:10] if job.posted_on|length > 10 else job.posted_on }}</span>
-              {% endif %}
-              <span>🕐 {{ job.found_at[:10] }}</span>
-            </div>
-            {% if job.keywords %}
-            <div class="job-keywords">
-              {% for kw in job.keywords.split(', ') %}
-              <span class="kw-tag">{{ kw }}</span>
-              {% endfor %}
-            </div>
-            {% endif %}
-            <div class="job-actions">
-              <a href="{{ job.url }}" target="_blank" class="btn btn-sm" onclick="event.stopPropagation()">
-                Open Listing ↗
-              </a>
-              <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); openSidebar('{{ job.title|e }}')">
-                📋 Apply / Autofill
-              </button>
-              <select class="status-select" onchange="setStatus({{ job.id }}, this.value)" onclick="event.stopPropagation()">
-                <option value="new"      {% if job.status == 'new'      %}selected{% endif %}>🟢 New</option>
-                <option value="saved"    {% if job.status == 'saved'    %}selected{% endif %}>⭐ Saved</option>
-                <option value="applied"  {% if job.status == 'applied'  %}selected{% endif %}>📤 Applied</option>
-                <option value="rejected" {% if job.status == 'rejected' %}selected{% endif %}>❌ Rejected</option>
-              </select>
-            </div>
-          </div>
+  <!-- Jobs queue -->
+  <div id="queueJobs" class="queue-list">
+    {% for job in pending_jobs %}
+    <div class="queue-item" id="qitem-{{ job.id }}">
+      <div class="queue-item-info">
+        <div class="queue-item-title">{{ job.title }}</div>
+        <div class="queue-item-sub">
+          {{ job.company }}
+          {% if job.location %} · {{ job.location }}{% endif %}
+          {% if job.age_badge %} · {{ job.age_badge }}{% endif %}
+        </div>
+        {% if job.description %}
+        <div class="queue-item-desc">{{ job.description }}</div>
+        {% endif %}
+        {% if job.keywords %}
+        <div style="margin-top:.35rem;">
+          {% for kw in job.keywords.split(',') %}
+            <span class="badge badge-blue" style="margin:.1rem .1rem 0 0;">{{ kw.strip() }}</span>
           {% endfor %}
-        {% else %}
-          <div class="empty-state">
-            <div class="icon">📭</div>
-            <p>No jobs found. Run a scan to pull listings from healthcare career pages.</p>
-            <button class="btn btn-primary" onclick="triggerScan()">⟳ Scan All Companies</button>
-          </div>
+        </div>
         {% endif %}
       </div>
+      {% if job.score and job.score > 0 %}
+      <div class="queue-score">★ {{ job.score }}/10</div>
+      {% endif %}
+      <div class="queue-actions">
+        <a href="{{ job.url }}" target="_blank" class="btn btn-ghost btn-sm">View</a>
+        <button class="btn btn-success btn-sm" onclick="queueJob({{ job.id }}, 'approve')">✓ Add</button>
+        <button class="btn btn-danger  btn-sm" onclick="queueJob({{ job.id }}, 'reject')">✗ Skip</button>
+      </div>
     </div>
+    {% else %}
+    <p style="color:var(--text-muted);text-align:center;padding:2rem;">No pending jobs.</p>
+    {% endfor %}
+  </div>
+
+  <!-- Companies queue -->
+  <div id="queueCompanies" class="queue-list" style="display:none;">
+    {% for co in pending_companies %}
+    <div class="queue-item" id="citem-{{ co.id }}">
+      <div class="queue-item-info">
+        <div class="queue-item-title">{{ co.name }}</div>
+        <div class="queue-item-sub">
+          {% if co.sector %}{{ co.sector }}{% endif %}
+          {% if co.ats_type and co.ats_type != 'Unknown' %} · {{ co.ats_type }}{% endif %}
+          {% if co.hq %} · {{ co.hq }}{% endif %}
+        </div>
+        {% if co.why_suggested %}
+        <div class="queue-item-desc">{{ co.why_suggested }}</div>
+        {% endif %}
+      </div>
+      <div class="queue-actions">
+        {% if co.careers_url %}
+        <a href="{{ co.careers_url }}" target="_blank" class="btn btn-ghost btn-sm">Careers ↗</a>
+        {% endif %}
+        <button class="btn btn-success btn-sm" onclick="queueCompany({{ co.id }}, 'approve')">✓ Watch</button>
+        <button class="btn btn-danger  btn-sm" onclick="queueCompany({{ co.id }}, 'reject')">✗ Skip</button>
+      </div>
+    </div>
+    {% else %}
+    <p style="color:var(--text-muted);text-align:center;padding:2rem;">No company suggestions.</p>
+    {% endfor %}
   </div>
 </div>
 
-<!-- Toast -->
-<div class="toast" id="toast"></div>
+<!-- Filters -->
+<div class="filter-bar">
+  <a href="/?status=all{% if filters.keyword %}&keyword={{ filters.keyword }}{% endif %}"
+     class="filter-tab {% if filters.status == 'all' %}active{% endif %}">All ({{ stats.total }})</a>
+  <a href="/?status=new{% if filters.keyword %}&keyword={{ filters.keyword }}{% endif %}"
+     class="filter-tab {% if filters.status == 'new' %}active{% endif %}">🆕 New ({{ stats.new }})</a>
+  <a href="/?status=saved{% if filters.keyword %}&keyword={{ filters.keyword }}{% endif %}"
+     class="filter-tab {% if filters.status == 'saved' %}active{% endif %}">⭐ Saved ({{ stats.saved }})</a>
+  <a href="/?status=applied{% if filters.keyword %}&keyword={{ filters.keyword }}{% endif %}"
+     class="filter-tab {% if filters.status == 'applied' %}active{% endif %}">✅ Applied ({{ stats.applied }})</a>
+  <a href="/?age=fire{% if filters.status and filters.status != 'all' %}&status={{ filters.status }}{% endif %}"
+     class="filter-tab {% if filters.age == 'fire' %}active{% endif %}">🔥 Hot</a>
 
+  <form class="filter-search" method="GET">
+    {% if filters.status and filters.status != 'all' %}<input type="hidden" name="status" value="{{ filters.status }}">{% endif %}
+    <input type="text" name="keyword" placeholder="Search titles…" value="{{ filters.keyword }}">
+    <button type="submit" class="btn btn-ghost btn-sm">Search</button>
+    {% if filters.keyword %}<a href="/?status={{ filters.status }}" class="btn btn-ghost btn-sm">✕</a>{% endif %}
+  </form>
+</div>
+
+<!-- Jobs grid -->
+{% if jobs %}
+<div class="jobs-grid">
+  {% for job in jobs %}
+  <div class="job-card" id="job-{{ job.id }}">
+    <div class="job-card-top">
+      <div>
+        <div class="job-title">{{ job.title }}</div>
+        <div class="job-company">{{ job.company }}</div>
+      </div>
+      {% if job.keywords %}
+      <span class="badge badge-blue" style="font-size:.72rem;white-space:nowrap;">{{ job.keywords.split(',')[0] }}</span>
+      {% endif %}
+    </div>
+
+    {% if job.description %}
+    <div class="job-description">{{ job.description }}</div>
+    {% endif %}
+
+    <div class="job-meta">
+      {% if job.location %}<span>📍 {{ job.location }}</span>{% endif %}
+      {% if job.age_emoji %}<span>{{ job.age_emoji }} {{ job.age_label }}</span>{% endif %}
+      <span class="badge status-{{ job.status }}">{{ job.status }}</span>
+    </div>
+
+    <div class="job-actions">
+      <a href="{{ job.url }}" target="_blank" class="btn btn-ghost btn-sm">View ↗</a>
+      {% if job.status != 'saved' %}
+      <button class="btn btn-ghost btn-sm" onclick="setStatus({{ job.id }}, 'saved')">⭐ Save</button>
+      {% endif %}
+      {% if job.status != 'applied' %}
+      <button class="btn btn-primary btn-sm" onclick="setStatus({{ job.id }}, 'applied')">✅ Applied</button>
+      {% endif %}
+      {% if job.status != 'rejected' %}
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="setStatus({{ job.id }}, 'rejected')">✗ Hide</button>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-state-icon">🔍</div>
+  <h3>No jobs here yet</h3>
+  <p>Run a scan to pull in jobs from your watched companies.</p>
+  <br>
+  <button class="btn btn-primary" onclick="triggerScan()">Run Scan Now</button>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
 <script>
-function showToast(msg, duration = 2500) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), duration);
-}
+// ── Queue panel ───────────────────────────────────────────────────────────────
+let queueOpen = false;
+let activeTab = 'jobs';
 
-function setStatus(id, status) {
-  fetch('/api/status', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({id, status})
-  }).then(() => {
-    const card = document.getElementById('job-' + id);
-    const badge = card.querySelector('.badge');
-    badge.className = 'badge badge-' + status;
-    badge.textContent = status;
-    showToast('Status updated → ' + status);
-  });
-}
-
-function markSeen(id) {
-  const card = document.getElementById('job-' + id);
-  if (card && card.classList.contains('unseen')) {
-    card.classList.remove('unseen');
-    fetch('/api/seen', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({id})
-    });
+function toggleQueue(tab) {
+  const panel = document.getElementById('queuePanel');
+  if (!queueOpen || activeTab !== tab) {
+    panel.classList.add('open');
+    queueOpen = true;
+    switchTab(tab);
+  } else {
+    panel.classList.remove('open');
+    queueOpen = false;
   }
 }
 
-
-function closeModal() {
-  document.getElementById('resumeModal').classList.remove('open');
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('queueJobs').style.display = tab === 'jobs' ? 'flex' : 'none';
+  document.getElementById('queueCompanies').style.display = tab === 'companies' ? 'flex' : 'none';
+  document.getElementById('tabJobs').className = 'queue-tab' + (tab === 'jobs' ? ' active' : '');
+  document.getElementById('tabCompanies').className = 'queue-tab' + (tab === 'companies' ? ' active' : '');
 }
 
-document.getElementById('resumeModal').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
-});
-
-function triggerScan() {
-  const company = document.getElementById('scanTarget').value;
-  showToast('Scanning ' + (company || 'all companies') + '...', 4000);
-  fetch('/api/scan', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({company: company || null})
-  }).then(r => r.json()).then(data => {
-    setTimeout(() => { showToast('Scan complete — refresh to see new jobs'); }, 5000);
-  });
+// ── Queue decisions ───────────────────────────────────────────────────────────
+async function queueJob(id, decision) {
+  const r = await apiPost('/api/queue/job', {id, decision});
+  if (r.ok) {
+    document.getElementById('qitem-' + id)?.remove();
+    toast(decision === 'approve' ? '✓ Added to dashboard' : 'Skipped', decision === 'approve' ? 'success' : '');
+    if (decision === 'approve') setTimeout(() => location.reload(), 800);
+  }
 }
 
-function triggerSuggest() {
-  showToast('Generating company suggestions...', 4000);
-  fetch('/api/suggest', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' })
-    .then(() => setTimeout(() => { showToast('Done — refresh to see suggestions'); }, 5000));
+async function queueCompany(id, decision) {
+  const r = await apiPost('/api/queue/company', {id, decision});
+  if (r.ok) {
+    document.getElementById('citem-' + id)?.remove();
+    toast(decision === 'approve' ? '✓ Watching — scanning now…' : 'Skipped', decision === 'approve' ? 'success' : '');
+  }
 }
 
-function liveFilter() {
-  const val = document.getElementById('searchInput').value.toLowerCase();
-  document.querySelectorAll('.job-card').forEach(card => {
-    const text = card.textContent.toLowerCase();
-    card.style.display = text.includes(val) ? '' : 'none';
-  });
+// ── Job status ────────────────────────────────────────────────────────────────
+async function setStatus(id, status) {
+  const r = await apiPost('/api/status', {id, status});
+  if (r.ok) {
+    if (status === 'rejected') {
+      document.getElementById('job-' + id)?.remove();
+      toast('Hidden');
+    } else {
+      location.reload();
+    }
+  }
+}
+
+// ── Scan / score ──────────────────────────────────────────────────────────────
+async function triggerScan() {
+  toast('Scanning companies… this takes a minute');
+  const r = await apiPost('/api/scan', {});
+  if (r.ok) toast('Scan started! Queue will update shortly.', 'success');
+}
+
+async function triggerScore() {
+  toast('Scoring pending jobs…');
+  const r = await apiPost('/api/score', {});
+  if (r.ok) toast('Scoring started!', 'success');
 }
 </script>
 {% endblock %}

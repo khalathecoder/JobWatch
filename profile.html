@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% block title %}JobWatch — Profile{% endblock %}
+{% block extra_styles %}
+<style>
+  .profile-wrap { max-width: 800px; margin: 0 auto; padding: 32px 24px; }
+  .profile-header { margin-bottom: 28px; }
+  .profile-header h1 { font-size: 22px; font-weight: 600; }
+  .profile-header p  { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  .profile-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .profile-card h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-bottom: 18px;
+  }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid.one-col { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-family: var(--mono); }
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 9px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    resize: vertical;
+  }
+  .form-group input:focus,
+  .form-group textarea:focus,
+  .form-group select:focus { border-color: var(--accent); }
+
+  .save-btn {
+    margin-top: 16px;
+    padding: 9px 24px;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .save-btn:hover { background: var(--accent2); }
+
+  .saved-banner {
+    background: #1a3a22;
+    border: 1px solid #2a5a32;
+    color: var(--new);
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .exp-block {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .exp-block-header {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    margin-bottom: 12px;
+    font-family: var(--mono);
+  }
+  .exp-grid { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr 1fr; gap: 10px; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .back-link { margin-bottom: 20px; display: inline-block; }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="topbar">
+  <div class="topbar-brand">Job<span>Watch</span> — Profile</div>
+  <div class="topbar-right">
+    <a href="/" class="btn btn-sm">← Dashboard</a>
+    <a href="/logout" class="btn btn-sm">Sign out</a>
+  </div>
+</div>
+
+<div class="profile-wrap">
+  <div class="profile-header">
+    <h1>Your Profile</h1>
+    <p>All fields pre-loaded from your resume. Edit anything here and it updates the autofill sidebar.</p>
+  </div>
+
+  {% if saved %}
+  <div class="saved-banner">✓ Changes saved.</div>
+  {% endif %}
+
+  <!-- Personal Info -->
+  <div class="profile-card">
+    <h2>Personal Info</h2>
+    <form method="POST">
+      <input type="hidden" name="action" value="info">
+      <div class="form-grid">
+        {% for key, label in [('full_name','Full Name'),('email','Email'),('phone','Phone')] %}
+        <div class="form-group">
+          <label>{{ label }}</label>
+          <input type="text" name="{{ key }}" value="{{ profile.info.get(key,'') }}">
+        </div>
+        {% endfor %}
+      </div>
+
+      <h3 style="font-size:12px; color:var(--accent); margin: 20px 0 10px; font-family:var(--sans); text-transform:uppercase;">Mailing Address</h3>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column: span 2;">
+          <label>Street Address</label>
+          <input type="text" name="address_street" value="{{ profile.info.get('address_street','') }}">
+        </div>
+        <div class="form-group">
+          <label>City</label>
+          <input type="text" name="address_city" value="{{ profile.info.get('address_city','') }}">
+        </div>
+        <div class="form-group" style="display:grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+          <div class="form-group">
+            <label>State</label>
+            <input type="text" name="address_state" value="{{ profile.info.get('address_state','') }}" placeholder="OH">
+          </div>
+          <div class="form-group">
+            <label>Zip Code</label>
+            <input type="text" name="address_zip" value="{{ profile.info.get('address_zip','') }}">
+          </div>
+        </div>
+      </div>
+
+      <h3 style="font-size:12px; color:var(--accent); margin: 20px 0 10px; font-family:var(--sans); text-transform:uppercase;">Career Portal Defaults</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Preferred Username</label>
+          <input type="text" name="pref_username" value="{{ profile.info.get('pref_username','') }}">
+        </div>
+        <div class="form-group">
+          <label>Password Hint / Suggestion</label>
+          <input type="text" name="pref_pw_hint" value="{{ profile.info.get('pref_pw_hint','') }}">
+        </div>
+      </div>
+
+      <h3 style="font-size:12px; color:var(--accent); margin: 20px 0 10px; font-family:var(--sans); text-transform:uppercase;">Online Profiles</h3>
+      <div class="form-grid">
+        {% for key, label in [('linkedin','LinkedIn URL'),('github','GitHub URL'),('website','Website')] %}
+        <div class="form-group">
+          <label>{{ label }}</label>
+          <input type="text" name="{{ key }}" value="{{ profile.info.get(key,'') }}">
+        </div>
+        {% endfor %}
+      </div>
+      <button type="submit" class="save-btn">Save Personal Info</button>
+    </form>
+  </div>
+
+  <!-- Summaries -->
+  <div class="profile-card">
+    <h2>Professional Summaries</h2>
+    <form method="POST">
+      <input type="hidden" name="action" value="summary">
+      <div class="form-grid one-col">
+        <div class="form-group">
+          <label>Resume A — Security</label>
+          <textarea name="summary_a" rows="4">{{ profile.summaries.get('A','') }}</textarea>
+        </div>
+        <div class="form-group">
+          <label>Resume B — Support / Dev</label>
+          <textarea name="summary_b" rows="4">{{ profile.summaries.get('B','') }}</textarea>
+        </div>
+      </div>
+        <div class="form-group">
+          <label>Passion Statement — pulled into every cover letter</label>
+          <textarea name="passion_statement" rows="5">{{ profile.passion or '' }}</textarea>
+          <span class="hint">Write this once. Claude uses it as inspiration, not copy-paste, for every cover letter.</span>
+        </div>
+      <button type="submit" class="save-btn">Save Summaries</button>
+    </form>
+  </div>
+
+  <!-- Experience -->
+  <div class="profile-card">
+    <h2>Experience</h2>
+    {% for exp in profile.experience %}
+    <div class="exp-block">
+      <div class="exp-block-header">{{ exp.job_title }} @ {{ exp.company }}</div>
+      <form method="POST">
+        <input type="hidden" name="action" value="experience">
+        <input type="hidden" name="exp_id" value="{{ exp.id }}">
+        <div class="exp-grid">
+          <div class="form-group">
+            <label>Job Title</label>
+            <input type="text" name="job_title" value="{{ exp.job_title }}">
+          </div>
+          <div class="form-group">
+            <label>Company</label>
+            <input type="text" name="company" value="{{ exp.company }}">
+          </div>
+          <div class="form-group">
+            <label>Start (MM/YYYY)</label>
+            <input type="text" name="start_date" value="{{ exp.start_date }}" placeholder="01/2024">
+          </div>
+          <div class="form-group">
+            <label>End (MM/YYYY)</label>
+            <input type="text" name="end_date" value="{{ exp.end_date }}" placeholder="Present">
+          </div>
+          <div class="form-group">
+            <label>Resume</label>
+            <select name="resume_version">
+              <option value="A"    {% if exp.resume_version=='A'    %}selected{% endif %}>A — Security</option>
+              <option value="B"    {% if exp.resume_version=='B'    %}selected{% endif %}>B — Support</option>
+              <option value="both" {% if exp.resume_version=='both' %}selected{% endif %}>Both</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Responsibilities (one per line)</label>
+          <textarea name="responsibilities" rows="{% if exp.responsibilities|length > 4 %}{{ exp.responsibilities|length + 1 }}{% else %}5{% endif %}">{{ exp.responsibilities | join('\n') }}</textarea>
+          <span class="hint">Each line = one bullet. Plain text only — no bullets or dashes needed.</span>
+        </div>
+        <button type="submit" class="save-btn" style="margin-top:10px">Save</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

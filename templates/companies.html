@@ -1,273 +1,163 @@
-{% extends 'base.html' %}
-{% block title %}JobWatch — Companies{% endblock %}
+{% extends "base.html" %}
+{% block title %}Companies — JobWatch{% endblock %}
+
 {% block extra_styles %}
-<style>
-  .co-wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
-  .co-stats { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
-  .co-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 20px; }
-  .co-stat .num { font-family: var(--mono); font-size: 24px; font-weight: 500; }
-  .co-stat .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-  .co-stat.active .num { color: var(--new); }
-  .co-stat.watching .num { color: var(--applied); }
-  .co-stat.rejected .num { color: var(--muted); }
+.company-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.company-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  transition: all .2s;
+}
+.company-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,.08); }
+.company-name { font-weight: 700; font-size: .95rem; }
+.company-meta { font-size: .8rem; color: var(--text-muted); margin-top: .25rem; }
+.company-card-footer {
+  display: flex; gap: .5rem; margin-top: 1rem; padding-top: .75rem;
+  border-top: 1px solid var(--border); align-items: center;
+}
+.section-title {
+  font-size: 1.1rem; font-weight: 700;
+  margin-bottom: 1rem; margin-top: 1.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .05em; font-size: .8rem;
+}
+.section-title:first-child { margin-top: 0; }
 
-  .co-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
-  .co-tab { padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-family: var(--sans); font-size: 13px; cursor: pointer; transition: all 0.15s; margin-bottom: -1px; }
-  .co-tab:hover { color: var(--text); }
-  .co-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .co-tab .ct { font-family: var(--mono); font-size: 11px; background: var(--card); padding: 1px 6px; border-radius: 10px; margin-left: 6px; }
-
-  .co-section { display: none; }
-  .co-section.active { display: block; }
-
-  .co-grid { display: flex; flex-direction: column; gap: 8px; }
-  .co-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; transition: border-color 0.15s; }
-  .co-card:hover { border-color: var(--accent); }
-  .co-card.active-co  { border-left: 3px solid var(--new); }
-  .co-card.watching-co{ border-left: 3px solid var(--applied); }
-  .co-card.rejected-co{ border-left: 3px solid var(--border); opacity: 0.7; }
-
-  .co-info { flex: 1; }
-  .co-name { font-size: 15px; font-weight: 500; color: var(--text); }
-  .co-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  .co-tag { font-size: 11px; font-family: var(--mono); background: var(--card); border: 1px solid var(--border); color: var(--muted); padding: 2px 8px; border-radius: 4px; }
-  .co-why { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 6px; line-height: 1.5; }
-  .co-careers { font-size: 12px; color: var(--accent); margin-top: 4px; word-break: break-all; }
-  .co-scan-info { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 4px; }
-
-  .co-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
-  .co-status { font-size: 11px; font-family: var(--mono); padding: 3px 10px; border-radius: 20px; }
-  .status-active   { background: #1a3a22; color: var(--new); }
-  .status-watching { background: #0f2a45; color: var(--applied); }
-  .status-dry      { background: #1a1a2a; color: var(--muted); }
-  .status-rejected { background: #1a1a1a; color: var(--muted); }
-  .co-jobs-count { font-size: 22px; font-family: var(--mono); font-weight: 700; color: var(--text); text-align: right; }
-  .co-jobs-label { font-size: 10px; color: var(--muted); text-align: right; }
-
-  .co-actions { display: flex; gap: 6px; margin-top: 6px; }
-  .grace-bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
-  .grace-fill { height: 100%; background: var(--applied); border-radius: 2px; transition: width 0.3s; }
-  .grace-fill.danger { background: var(--rejected); }
-  .grace-label { font-size: 10px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
-
-  .empty-co { text-align: center; padding: 48px; color: var(--muted); }
-  .empty-co .icon { font-size: 36px; margin-bottom: 12px; }
-</style>
+.stats-row {
+  display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.75rem;
+}
+.stat-chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: .5rem;
+  padding: .65rem 1.1rem;
+  font-size: .85rem;
+}
+.stat-chip span { font-weight: 800; font-size: 1.2rem; }
 {% endblock %}
+
 {% block content %}
-<div class="topbar">
-  <div class="topbar-brand">Job<span>Watch</span> — Companies</div>
-  <div class="topbar-right">
-    <button class="btn btn-primary btn-sm" onclick="triggerSuggest()">✨ Suggest More</button>
-    <button class="btn btn-sm" onclick="triggerScan()">⟳ Scan All</button>
-    <a href="/" class="btn btn-sm">← Dashboard</a>
-    <a href="/logout" class="btn btn-sm">Sign out</a>
+<div class="page-header">
+  <div class="page-title">Companies</div>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="triggerSuggest()">✨ AI Suggest</button>
   </div>
 </div>
 
-<div class="co-wrap">
-
-  <!-- Stats -->
-  <div class="co-stats">
-    <div class="co-stat active">
-      <div class="num">{{ stats.active }}</div>
-      <div class="lbl">🟢 Active</div>
-    </div>
-    <div class="co-stat watching">
-      <div class="num">{{ stats.watching }}</div>
-      <div class="lbl">👁 Watching</div>
-    </div>
-    <div class="co-stat">
-      <div class="num">{{ stats.pending }}</div>
-      <div class="lbl">📬 Pending</div>
-    </div>
-    <div class="co-stat rejected">
-      <div class="num">{{ stats.rejected }}</div>
-      <div class="lbl">🌵 Auto-rejected</div>
-    </div>
-  </div>
-
-  <!-- Tabs -->
-  <div class="co-tabs">
-    <button class="co-tab active" onclick="showTab('active', this)">
-      🟢 Active <span class="ct">{{ active_companies|length }}</span>
-    </button>
-    <button class="co-tab" onclick="showTab('watching', this)">
-      👁 Watching <span class="ct">{{ watching_companies|length }}</span>
-    </button>
-    <button class="co-tab" onclick="showTab('rejected', this)">
-      🌵 Auto-rejected <span class="ct">{{ rejected_companies|length }}</span>
-    </button>
-  </div>
-
-  <!-- Active -->
-  <div class="co-section active" id="tab-active">
-    {% if active_companies %}
-    <div class="co-grid">
-      {% for co in active_companies %}
-      <div class="co-card active-co">
-        <div class="co-info">
-          <div class="co-name">{{ co.name }}</div>
-          <div class="co-meta">
-            {% if co.sector %}<span class="co-tag">{{ co.sector }}</span>{% endif %}
-            {% if co.ats_type %}<span class="co-tag">{{ co.ats_type }}</span>{% endif %}
-            {% if co.hq %}<span class="co-tag">📍 {{ co.hq }}</span>{% endif %}
-          </div>
-          {% if co.careers_url %}
-          <div class="co-careers"><a href="{{ co.careers_url }}" target="_blank">{{ co.careers_url }}</a></div>
-          {% endif %}
-          {% if co.why_suggested %}
-          <div class="co-why">{{ co.why_suggested }}</div>
-          {% endif %}
-          <div class="co-scan-info">
-            Last scanned: {{ co.last_scanned[:10] if co.last_scanned else 'Never' }}
-            {% if co.last_job_found %} · Last job: {{ co.last_job_found[:10] }}{% endif %}
-          </div>
-        </div>
-        <div class="co-right">
-          <span class="co-status status-active">🟢 Active</span>
-          <div class="co-jobs-count">{{ co.total_jobs_found or 0 }}</div>
-          <div class="co-jobs-label">jobs found</div>
-          <div class="co-actions">
-            <button class="btn btn-sm" onclick="scanNow({{ co.id }}, '{{ co.name|e }}')">⟳ Scan</button>
-          </div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-co">
-      <div class="icon">📭</div>
-      <p>No active companies yet. Run a scan to start finding jobs.</p>
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- Watching -->
-  <div class="co-section" id="tab-watching">
-    {% if watching_companies %}
-    <div class="co-grid">
-      {% for co in watching_companies %}
-      {% set days_approved = ((now - (co.approved_at or now))|int) %}
-      {% set grace_pct = [((days_approved / grace_days) * 100)|int, 100]|min %}
-      <div class="co-card watching-co">
-        <div class="co-info">
-          <div class="co-name">{{ co.name }}</div>
-          <div class="co-meta">
-            {% if co.sector %}<span class="co-tag">{{ co.sector }}</span>{% endif %}
-            {% if co.ats_type %}<span class="co-tag">{{ co.ats_type }}</span>{% endif %}
-            {% if co.hq %}<span class="co-tag">📍 {{ co.hq }}</span>{% endif %}
-          </div>
-          {% if co.careers_url %}
-          <div class="co-careers"><a href="{{ co.careers_url }}" target="_blank">{{ co.careers_url }}</a></div>
-          {% endif %}
-          {% if co.why_suggested %}
-          <div class="co-why">{{ co.why_suggested }}</div>
-          {% endif %}
-          <div class="grace-bar">
-            <div class="grace-fill {% if grace_pct > 75 %}danger{% endif %}" style="width:{{ grace_pct }}%"></div>
-          </div>
-          <div class="grace-label">Grace period: {{ co.scan_count or 0 }} scans · {{ grace_days - days_approved }} days left before auto-reject</div>
-        </div>
-        <div class="co-right">
-          <span class="co-status status-watching">👁 Watching</span>
-          <div class="co-actions">
-            <button class="btn btn-sm" onclick="scanNow({{ co.id }}, '{{ co.name|e }}')">⟳ Scan Now</button>
-          </div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-co">
-      <div class="icon">👁</div>
-      <p>No companies on watchlist yet. Approve some suggestions to start monitoring.</p>
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- Auto-rejected -->
-  <div class="co-section" id="tab-rejected">
-    {% if rejected_companies %}
-    <div class="co-grid">
-      {% for co in rejected_companies %}
-      <div class="co-card rejected-co">
-        <div class="co-info">
-          <div class="co-name">{{ co.name }}</div>
-          <div class="co-meta">
-            {% if co.sector %}<span class="co-tag">{{ co.sector }}</span>{% endif %}
-            {% if co.ats_type %}<span class="co-tag">{{ co.ats_type }}</span>{% endif %}
-          </div>
-          {% if co.why_rejected %}
-          <div class="co-why">{{ co.why_rejected }}</div>
-          {% endif %}
-          {% if co.careers_url %}
-          <div class="co-careers"><a href="{{ co.careers_url }}" target="_blank">{{ co.careers_url }}</a></div>
-          {% endif %}
-        </div>
-        <div class="co-right">
-          <span class="co-status status-rejected">🌵 Auto-rejected</span>
-          <div class="co-actions">
-            <button class="btn btn-sm" onclick="restoreCompany({{ co.id }}, '{{ co.name|e }}')">↩ Restore</button>
-          </div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-co">
-      <div class="icon">🌵</div>
-      <p>No auto-rejected companies. The watchlist is clean.</p>
-    </div>
-    {% endif %}
-  </div>
-
+<!-- Stats row -->
+<div class="stats-row">
+  <div class="stat-chip">Active: <span>{{ stats.active }}</span></div>
+  <div class="stat-chip">Watching: <span>{{ stats.watching }}</span></div>
+  <div class="stat-chip">Pending: <span>{{ stats.pending }}</span></div>
+  <div class="stat-chip">Auto-rejected: <span>{{ stats.rejected }}</span></div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- Active companies -->
+{% if active_companies %}
+<div class="section-title">✅ Active — have produced relevant jobs</div>
+<div class="company-grid">
+  {% for co in active_companies %}
+  <div class="company-card">
+    <div class="company-name">{{ co.name }}</div>
+    <div class="company-meta">
+      {% if co.sector %}{{ co.sector }}{% endif %}
+      {% if co.ats_type and co.ats_type != 'Unknown' %} · {{ co.ats_type }}{% endif %}
+      {% if co.hq %} · {{ co.hq }}{% endif %}
+    </div>
+    {% if co.total_jobs_found %}
+    <div style="margin-top:.5rem;font-size:.8rem;color:var(--success);font-weight:600;">
+      {{ co.total_jobs_found }} job{{ 's' if co.total_jobs_found != 1 else '' }} found
+    </div>
+    {% endif %}
+    <div class="company-card-footer">
+      {% if co.careers_url %}
+      <a href="{{ co.careers_url }}" target="_blank" class="btn btn-ghost btn-sm">Careers ↗</a>
+      {% endif %}
+      <button class="btn btn-ghost btn-sm" onclick="scanCompany({{ co.id }})">🔍 Scan</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 
+<!-- Watching companies -->
+{% if watching_companies %}
+<div class="section-title">👀 Watching — approved, no jobs yet</div>
+<div class="company-grid">
+  {% for co in watching_companies %}
+  <div class="company-card" style="border-style:dashed;">
+    <div class="company-name">{{ co.name }}</div>
+    <div class="company-meta">
+      {% if co.sector %}{{ co.sector }}{% endif %}
+      {% if co.ats_type and co.ats_type != 'Unknown' %} · {{ co.ats_type }}{% endif %}
+      {% if co.hq %} · {{ co.hq }}{% endif %}
+    </div>
+    {% if co.why_suggested %}
+    <div style="margin-top:.4rem;font-size:.78rem;color:var(--text-muted);">{{ co.why_suggested[:120] }}…</div>
+    {% endif %}
+    <div class="company-card-footer">
+      {% if co.careers_url %}
+      <a href="{{ co.careers_url }}" target="_blank" class="btn btn-ghost btn-sm">Careers ↗</a>
+      {% endif %}
+      <button class="btn btn-ghost btn-sm" onclick="scanCompany({{ co.id }})">🔍 Scan</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Auto-rejected companies -->
+{% if rejected_companies %}
+<div class="section-title">🚫 Auto-rejected — {{ grace_days }}-day grace period expired with no matches</div>
+<div class="company-grid">
+  {% for co in rejected_companies %}
+  <div class="company-card" style="opacity:.65;">
+    <div class="company-name">{{ co.name }}</div>
+    <div class="company-meta">
+      {% if co.sector %}{{ co.sector }}{% endif %}
+    </div>
+    <div class="company-card-footer">
+      <button class="btn btn-ghost btn-sm" onclick="restoreCompany({{ co.id }}, '{{ co.name }}')">↩ Restore</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not active_companies and not watching_companies %}
+<div style="text-align:center;padding:5rem 2rem;color:var(--text-muted);">
+  <div style="font-size:3rem;margin-bottom:1rem;">🏢</div>
+  <h3 style="color:var(--text);margin-bottom:.5rem;">No companies yet</h3>
+  <p>Use AI Suggest to find companies that match your profile.</p>
+  <br>
+  <button class="btn btn-primary" onclick="triggerSuggest()">✨ Get AI Suggestions</button>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
 <script>
-function showTab(name, btn) {
-  document.querySelectorAll('.co-section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.co-tab').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  btn.classList.add('active');
+async function scanCompany(id) {
+  toast('Scanning company…');
+  await apiPost(`/api/scan/company/${id}`, {});
+  toast('Scan started!', 'success');
 }
 
-function scanNow(id, name) {
-  showToast(`Scanning ${name}...`, 3000);
-  fetch('/api/scan/company/' + id, { method: 'POST' })
-    .then(() => setTimeout(() => showToast('Scan complete — check dashboard for new jobs'), 4000));
+async function restoreCompany(id, name) {
+  const r = await apiPost('/api/company/restore', {id});
+  if (r.ok) { toast(`↩ ${name} restored`); location.reload(); }
 }
 
-function restoreCompany(id, name) {
-  fetch('/api/company/restore', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({id})
-  }).then(() => {
-    showToast(`↩ ${name} restored to watchlist`);
-    setTimeout(() => location.reload(), 1200);
-  });
-}
-
-function triggerSuggest() {
-  showToast('Generating company suggestions...', 5000);
-  fetch('/api/suggest', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' })
-    .then(() => setTimeout(() => { showToast('Done — check dashboard queue'); }, 8000));
-}
-
-function triggerScan() {
-  showToast('Scanning all companies...', 4000);
-  fetch('/api/scan', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' })
-    .then(() => setTimeout(() => location.reload(), 6000));
-}
-
-function showToast(msg, duration=2500) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), duration);
+async function triggerSuggest() {
+  toast('Asking Claude for company suggestions… (~30 sec)');
+  const r = await apiPost('/api/suggest', {});
+  if (r.ok) toast('Suggestions generating! Check back in a moment.', 'success');
 }
 </script>
 {% endblock %}

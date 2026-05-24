@@ -1,0 +1,74 @@
+127.0.0.1 - - [24/May/2026 12:53:35] "GET /companies HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 12:53:35] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [24/May/2026 12:53:45] "GET /companies HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 12:53:45] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [24/May/2026 12:53:47] "POST /api/suggest HTTP/1.1" 200 -
+Stage 1: Generating candidates for sectors: ['healthcare', 'financial', 'utilities', 'insurance', 'government', 'tech']
+  Got 10 candidates
+  Verifying 1/10: Nationwide Insurance...
+  Verifying 2/10: American Electric Power (AEP)...
+127.0.0.1 - - [24/May/2026 12:54:25] "GET /companies HTTP/1.1" 200 -
+  Verifying 3/10: Fifth Third Bank...
+  Verifying 4/10: Sherwin-Williams...
+127.0.0.1 - - [24/May/2026 12:54:41] "GET /companies HTTP/1.1" 200 -
+  Verifying 5/10: Parker Hannifin...
+[2026-05-24 12:54:52,881] ERROR in app: Exception on / [GET]
+Traceback (most recent call last):
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\app.py", line 104, in dashboard
+    pending_companies= get_pending_companies(),
+                       ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\database.py", line 357, in get_pending_companies
+    rows = conn.execute(
+           ~~~~~~~~~~~~^
+        "SELECT * FROM company_suggestions WHERE status='pending' ORDER BY suggested_at DESC"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).fetchall()
+    ^
+sqlite3.OperationalError: no such column: suggested_at
+127.0.0.1 - - [24/May/2026 12:54:52] "GET / HTTP/1.1" 500 -
+  Verifying 6/10: Medical Mutual of Ohio...
+  Verifying 7/10: Lincoln Financial Group...
+  Verifying 8/10: Aflac...
+  Verifying 9/10: Cardinal Health...
+127.0.0.1 - - [24/May/2026 12:55:20] "GET /companies HTTP/1.1" 200 -
+127.0.0.1 - - [24/May/2026 12:55:21] "GET /companies HTTP/1.1" 200 -
+  Verifying 10/10: Battelle Memorial Institute...
+Pipeline complete: 10 companies added to queue
+[2026-05-24 12:55:37,181] ERROR in app: Exception on / [GET]
+Traceback (most recent call last):
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask\app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\app.py", line 104, in dashboard
+    pending_companies= get_pending_companies(),
+                       ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Khala\Documents\GitHub\JobWatch\database.py", line 357, in get_pending_companies
+    rows = conn.execute(
+           ~~~~~~~~~~~~^
+        "SELECT * FROM company_suggestions WHERE status='pending' ORDER BY suggested_at DESC"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).fetchall()
+    ^
+sqlite3.OperationalError: no such column: suggested_at
+127.0.0.1 - - [24/May/2026 12:55:37] "GET / HTTP/1.1" 500 -

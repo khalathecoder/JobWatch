@@ -1,93 +1,62 @@
-# JobWatch Flask App Enhancement TODO
+# JobWatch Web Migration TODO
 
-## Phase 1: Fix Database & Core Issues ✅
-- [x] Fix database schema inconsistencies (merge init_db and init_queue_tables)
-- [x] Create web_saves table in database initialization
-- [x] Add missing columns (passion_statement, approved_at, etc.)
-- [x] Fix app.py route registration (move routes before app.run())
-- [x] Add missing imports (init_approved_companies, add_approved_company, update_last_scanned)
-- [x] Fix profile_db.py schema to include passion_statement column
-- [x] Test all database operations work correctly
+## Phase 1: Database Schema
+- [x] Create jobs table (title, company, location, url, status, found_at, etc.)
+- [x] Create company_suggestions table (company, ats_type, careers_url, verified, etc.)
+- [x] Create job_queue table (pending job approvals)
+- [x] Create user_profile table (address, username, password hint, etc.)
+- [x] Create web_saves table (manually saved jobs from extension)
+- [x] Create scan_log table (track scraper runs)
 
-## Phase 2: Job Expiration & Validation ✅
-- [x] Create job_expiration.py module with URL validation
-- [x] Implement check_url_valid() to detect expired jobs
-- [x] Add check_all_jobs_expiration() for batch processing
-- [x] Implement automatic marking of expired jobs as 'closed'
-- [x] Add cleanup_old_expired_jobs() to maintain database performance
-- [x] Integrate into scheduler for automatic checking
+## Phase 2: Backend API (tRPC Procedures)
+- [x] Jobs router (list, filter, update status, mark seen)
+- [x] Companies router (list, approve, reject, discover new)
+- [x] Profile router (get, update personal info)
+- [x] Cover letter router (generate from job description)
+- [x] Scraper router (trigger scan, get status)
+- [x] Web saves router (save, list, update status)
+- [x] Database helper functions (db.ts with all CRUD operations)
 
-## Phase 3: Email Notifications ✅
-- [x] Create email_notifications.py module
-- [x] Implement send_email() with SMTP support (Gmail, Outlook, SendGrid)
-- [x] Create send_new_job_alert() for individual job notifications
-- [x] Create send_daily_digest() for batch notifications
-- [x] Create send_scan_report() for scheduler reports
-- [x] Add notification_log table to database
-- [x] Integrate email alerts into scheduler
+## Phase 3: Frontend Pages
+- [x] Dashboard (job list with filters, stats)
+- [x] Profile page (edit personal info, address, login helper)
+- [x] Companies page (manage tracked companies)
+- [ ] Saved jobs page (manually saved jobs)
+- [ ] Settings page (scraper config, preferences)
 
-## Phase 4: Scheduler Integration ✅
-- [x] Update scheduler.py to call job expiration checker
-- [x] Add email notification sending to scan cycle
-- [x] Implement run_grace_period_check() for auto-rejecting stale companies
-- [x] Add configurable intervals via environment variables
-- [x] Improve logging with detailed scan reports
+## Phase 4: Sidebar Component
+- [ ] Autofill sidebar (personal info, login helper, cover letter)
+- [ ] Resume toggle (A/B versions)
+- [ ] Experience section with copy buttons
+- [ ] Cover letter generator UI
 
-## Phase 5: Production Deployment ✅
-- [x] Create Dockerfile for containerization
-- [x] Create docker-compose.yml for local testing
-- [x] Add gunicorn and psycopg2 to requirements.txt
-- [x] Create comprehensive DEPLOYMENT.md guide
-- [x] Document Railway, Render, Heroku, and VPS deployment options
-- [x] Add health check endpoint (/api/ping)
-- [x] Document email configuration for Gmail, Outlook, SendGrid
+## Phase 4b: Daily Scraper & Job Comparison
+- [x] Implement daily scraper with job comparison logic
+- [x] Add job expiration tracking (mark jobs as expired if URL no longer exists)
+- [x] Implement job deduplication and update logic
+- [x] Add notification triggers for new relevant jobs
 
-## Phase 6: Testing & Documentation
-- [ ] Test Docker build locally: `docker-compose build`
-- [ ] Test app startup: `docker-compose up`
-- [ ] Verify all routes are accessible
-- [ ] Test job expiration with sample URLs
-- [ ] Test email notifications with test credentials
-- [ ] Test scheduler runs on schedule
-- [ ] Create quick start guide for users
-- [ ] Document all API endpoints
+## Phase 4c: Email & In-App Notifications
+- [x] Set up email notifications (to callmekhala@gmail.com)
+- [x] Implement in-app notification system
+- [ ] Create notification preferences/settings
+- [ ] Test email delivery
 
-## Phase 7: Chrome Extension (Optional)
-- [ ] Create manifest.json for Chrome extension
-- [ ] Build extension popup UI
-- [ ] Implement job capture functionality
-- [ ] Add autofill for application forms
-- [ ] Test with real job sites
-- [ ] Package as .crx file
+## Phase 5: Scrapers & Scheduled Tasks
+- [ ] Migrate Workday scraper logic
+- [ ] Integrate Manus researcher with job filtering (only suggest companies with relevant jobs)
+- [ ] Set up Heartbeat for 2-day discovery schedule
+- [ ] Set up daily job scraping schedule
 
-## Known Issues & Improvements
-- [ ] Add PostgreSQL support for production (currently SQLite)
-- [ ] Implement caching for company discovery
-- [ ] Add rate limiting to prevent API abuse
-- [ ] Create admin dashboard for monitoring
-- [ ] Add backup/restore functionality
-- [ ] Implement job deduplication logic
-- [ ] Add user preferences for notification frequency
+## Phase 6: Chrome Extension Sidebar
+- [ ] Build extension sidebar component
+- [ ] Implement API calls to hosted website
+- [ ] Add personal info copy/paste functionality
+- [ ] Integrate cover letter generator
+- [ ] Add manual job save feature
 
-## Configuration Checklist
-Before deployment, ensure:
-- [ ] SECRET_KEY is set to a random value
-- [ ] DASHBOARD_USERNAME and DASHBOARD_PASSWORD are strong
-- [ ] SENDER_EMAIL and SENDER_PASSWORD are configured
-- [ ] ANTHROPIC_API_KEY is valid
-- [ ] MANUS_API_KEY is valid
-- [ ] NOTIFICATION_EMAIL is correct
-- [ ] SMTP settings match your email provider
-- [ ] All environment variables are in .env file
-
-
-## Phase 6: Chrome Extension - Automatic Application Detection ✅
-- [x] Create Chrome extension manifest.json
-- [x] Implement form submission detection (all job sites)
-- [x] Add job URL extraction from current page
-- [x] Implement API call to mark job as "applied"
-- [x] Add confirmation notification in extension
-- [x] Handle edge cases (multiple applications, same job)
-- [x] Create extension installation guide (EXTENSION_SETUP.md)
-- [x] Create backend API endpoints (extension_api.py)
-- [x] Integrate extension API into Flask app (app.py)
+## Phase 7: Deployment & Testing
+- [ ] Configure environment variables
+- [ ] Test authentication flow
+- [ ] Test scraper execution
+- [ ] Deploy to production

@@ -24,38 +24,40 @@ def init_db():
             found_at  TEXT DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS job_queue (
-            id             INTEGER PRIMARY KEY AUTOINCREMENT,
-            company        TEXT NOT NULL,
-            title          TEXT NOT NULL,
-            location       TEXT,
-            url            TEXT NOT NULL UNIQUE,
-            posted_on      TEXT,
-            keywords       TEXT,
-            score          INTEGER DEFAULT 0,
-            score_reasoning TEXT,
-            green_flags    TEXT,
-            yellow_flags   TEXT,
-            red_flags      TEXT,
-            status         TEXT DEFAULT 'pending',
-            found_at       TEXT DEFAULT CURRENT_TIMESTAMP
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            company      TEXT NOT NULL,
+            title        TEXT NOT NULL,
+            location     TEXT,
+            url          TEXT NOT NULL UNIQUE,
+            posted_on    TEXT,
+            keywords     TEXT,
+            score        INTEGER DEFAULT 0,
+            score_reason TEXT,
+            age_badge    TEXT,
+            description  TEXT,
+            location_raw TEXT,
+            status       TEXT DEFAULT 'pending',
+            found_at     TEXT DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS company_suggestions (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            name            TEXT NOT NULL UNIQUE,
-            sector          TEXT,
-            ats_type        TEXT,
-            ats_tenant      TEXT,
-            ats_career_site TEXT,
-            career_url      TEXT,
-            hq_location     TEXT,
-            why_suggested   TEXT,
-            status          TEXT DEFAULT 'pending',
-            approved_at     TEXT,
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            name             TEXT NOT NULL UNIQUE,
+            sector           TEXT,
+            ats_type         TEXT DEFAULT 'Unknown',
+            workday_tenant   TEXT,
+            careers_url      TEXT DEFAULT '',
+            hq               TEXT,
+            why_suggested    TEXT,
+            sample_roles     TEXT DEFAULT '[]',
+            has_live_roles   INTEGER DEFAULT 0,
+            verified         INTEGER DEFAULT 0,
+            status           TEXT DEFAULT 'pending',
+            approved_at      TEXT,
             total_jobs_found INTEGER DEFAULT 0,
-            last_job_found  TEXT,
-            last_scanned    TEXT,
-            scan_count      INTEGER DEFAULT 0,
-            suggested_at    TEXT DEFAULT CURRENT_TIMESTAMP
+            last_job_found   TEXT,
+            last_scanned     TEXT,
+            scan_count       INTEGER DEFAULT 0,
+            suggested_at     TEXT DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS preference_log (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -137,6 +139,26 @@ def init_db():
     }
     for k, v in defaults.items():
         conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?,?)', (k, v))
+
+    # Migrations: add columns silently if they're missing (existing DB)
+    migrations = [
+        ('job_queue',          'score_reason',    'TEXT'),
+        ('job_queue',          'age_badge',        'TEXT'),
+        ('job_queue',          'description',      'TEXT'),
+        ('job_queue',          'location_raw',     'TEXT'),
+        ('company_suggestions','workday_tenant',   'TEXT DEFAULT ""'),
+        ('company_suggestions','careers_url',      'TEXT DEFAULT ""'),
+        ('company_suggestions','hq',               'TEXT'),
+        ('company_suggestions','sample_roles',     'TEXT DEFAULT "[]"'),
+        ('company_suggestions','has_live_roles',   'INTEGER DEFAULT 0'),
+        ('company_suggestions','verified',         'INTEGER DEFAULT 0'),
+    ]
+    for table, col, typedef in migrations:
+        try:
+            conn.execute(f'ALTER TABLE {table} ADD COLUMN {col} {typedef}')
+        except Exception:
+            pass  # column already exists
+
     conn.commit()
     conn.close()
 

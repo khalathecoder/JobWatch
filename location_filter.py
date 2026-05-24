@@ -1,94 +1,102 @@
 """
-Location filtering — remote nationwide OR within ~50 miles of Cleveland Heights OH
+Location and title filters for the job queue.
+Pass: fully remote, or within ~50 miles of Cleveland Heights OH.
+Fail: explicit onsite-only in a distant city.
+Unknown / empty location always passes — we can't filter what we can't see.
 """
+import re
 
-REMOTE_KEYWORDS = [
-    'remote', 'work from home', 'wfh', 'work-from-home',
-    'anywhere', 'virtual', 'distributed', 'fully remote',
-    'remote-first', 'remote first', 'home office',
-    'telecommute', 'telework'
+# ── Location keywords ─────────────────────────────────────────────────────────
+_REMOTE = [
+    'remote', 'work from home', 'wfh', 'telecommute', 'virtual',
+    'distributed', 'work anywhere', 'fully remote', 'hybrid',
 ]
 
-# Cities/areas within ~50 miles of Cleveland Heights 44118
-CLEVELAND_AREA = [
-    'cleveland', 'cleveland heights', 'shaker heights', 'beachwood',
-    'independence', 'parma', 'strongsville', 'westlake', 'rocky river',
-    'lakewood', 'euclid', 'mentor', 'willoughby', 'solon', 'aurora',
-    'hudson', 'stow', 'cuyahoga falls', 'akron', 'barberton',
-    'kent', 'ravenna', 'medina', 'brunswick', 'elyria', 'lorain',
-    'sandusky', 'painesville', 'chardon', 'geauga',
-    'cuyahoga', 'summit', 'lorain county', 'lake county',
-    'portage county', 'northeast ohio', 'greater cleveland',
-    # State-level (ohio jobs are likely commutable OR hybrid)
-    ', oh', ',oh', 'ohio',
+_CLEVELAND_AREA = [
+    'cleveland', 'ohio', ' oh ', ' oh,', ',oh', 'akron', 'canton',
+    'youngstown', 'columbus', 'cincinnati', 'medina', 'strongsville',
+    'beachwood', 'solon', 'aurora', 'twinsburg', 'mayfield', 'mentor',
+    'elyria', 'lorain', 'parma', 'westlake', 'rocky river', 'bay village',
+    'independence', 'valley view', 'warrensville', 'north royalton',
+    'berea', 'lakewood', 'euclid', 'willoughby', 'painesville',
 ]
 
-# Broad US indicators — let through, Claude scores for remote specifics  
-US_INDICATORS = [
-    'united states', 'nationwide', 'us only', 'u.s.', 'usa',
-    'multiple locations', 'various locations', 'flexible'
+_ONSITE_ONLY = [
+    'on-site only', 'onsite only', 'in-office only', 'no remote',
+    'must be local', 'relocation required',
 ]
 
-def location_qualifies(location_str):
+# ── Title disqualifiers ───────────────────────────────────────────────────────
+_BAD_TITLES = [
+    # Physical / trade
+    'electrical engineer', 'civil engineer', 'mechanical engineer',
+    'hvac', 'facilities engineer', 'hardware engineer',
+    'structural engineer', 'field engineer', 'construction',
+    'manufacturing engineer', 'plant engineer',
+    # Executive — way above level
+    ' director', 'vice president', ' vp,', ' vp ', 'ciso', 'chief ',
+    'svp', 'evp', 'head of security', 'head of ',
+    # Clearly unrelated
+    'marketing', 'account executive', 'accountant',
+    'customer success', 'customer service', 'administrative assistant',
+    'hr manager', 'recruiter', 'talent acquisition',
+    # Physical security
+    'security guard', 'security officer', 'loss prevention',
+    'armed security', 'unarmed security',
+]
+
+
+def location_qualifies(location: str) -> tuple[bool, str]:
     """
-    Returns (qualifies: bool, reason: str)
-    True if job is remote anywhere in US OR physically near Cleveland.
+    Returns (True, reason) if the location passes the filter.
+    Returns (False, reason) if it is clearly out of scope.
     """
-    if not location_str or location_str.strip() in ('', 'See listing', 'N/A'):
-        return True, 'unknown location — letting through'
+    if not location or not location.strip():
+        return True, 'location unknown — passed'
 
-    loc = location_str.lower().strip()
+    loc = location.lower()
 
-    # Remote → always include
-    for kw in REMOTE_KEYWORDS:
+    # Hard fail: explicit onsite-only markers
+    for kw in _ONSITE_ONLY:
         if kw in loc:
-            return True, f'remote ({kw})'
+            return False, f'onsite-only: {kw}'
 
-    # Cleveland area → include
-    for area in CLEVELAND_AREA:
-        if area in loc:
-            return True, f'Cleveland area ({area})'
+    # Pass: remote keywords
+    for kw in _REMOTE:
+        if kw in loc:
+            return True, f'remote: {kw}'
 
-    # Broad US → let through for Claude to evaluate
-    for us in US_INDICATORS:
-        if us in loc:
-            return True, f'US-based ({us})'
+    # Pass: Cleveland / Ohio area
+    for kw in _CLEVELAND_AREA:
+        if kw in loc:
+            return True, f'Cleveland area: {kw}'
 
-    # Specific non-Ohio US city → exclude
-    return False, f'not remote or local: {location_str}'
+    # Pass: US-national or vague postings
+    if re.search(r'\bus\b|united states|nationwide|multiple locations|anywhere', loc):
+        return True, 'US / national'
 
-def is_clearly_irrelevant_title(title):
+    # Fail: specific non-Ohio city  ("Dallas, TX" pattern)
+    if re.search(r',\s*[A-Z]{2}$', location.strip()):
+        state = re.search(r',\s*([A-Z]{2})$', location.strip()).group(1)
+        if state not in ('OH',):
+            return False, f'specific non-Cleveland city: {location}'
+
+    # Default: pass (ambiguous)
+    return True, 'ambiguous — passed'
+
+
+def is_clearly_irrelevant_title(title: str) -> tuple[bool, str]:
     """
-    Catch obvious false positives BEFORE hitting Claude.
-    The 'Electrical Support Engineer' problem.
+    Returns (True, reason) if the title is obviously NOT a cyber/IT role.
+    Returns (False, '') if it should proceed to keyword matching.
     """
-    title_lower = title.lower()
+    if not title:
+        return False, ''
 
-    # Hard disqualifiers — non-SW engineering disciplines
-    NON_SW = [
-        'electrical engineer', 'electrical support', 'electrical technician',
-        'civil engineer', 'mechanical engineer',
-        'hvac', 'facilities', 'construction', 'manufacturing engineer',
-        'process engineer', 'chemical engineer', 'environmental engineer',
-        'field service', 'hardware engineer', 'embedded systems',
-        'automotive engineer', 'structural engineer', 'controls engineer',
-        'instrumentation', 'biomedical engineer', 'lab technician',
-        'medical device', 'clinical engineer', 'rf engineer',
-        'telecommunications engineer', 'telecom engineer',
-    ]
-    for term in NON_SW:
-        if term in title_lower:
-            return True, f'non-SW discipline: {term}'
+    t = f' {title.lower()} '  # pad with spaces for word-boundary checks
 
-    # Seniority disqualifiers
-    SENIOR_TITLES = [
-        'chief ', 'ciso', ' cto ', 'cto,', ' cio ', 'vp ', 'vice president',
-        'svp', 'evp', 'director of', 'senior director',
-        'managing director', 'principal engineer', 'staff engineer',
-        'distinguished engineer', 'fellow,'
-    ]
-    for term in SENIOR_TITLES:
-        if term in title_lower:
-            return True, f'too senior: {term}'
+    for kw in _BAD_TITLES:
+        if kw in t:
+            return True, f'disqualified title: {kw.strip()}'
 
     return False, ''

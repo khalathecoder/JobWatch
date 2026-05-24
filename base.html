@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}JobWatch{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0B0F14;
+    --surface:  #131920;
+    --card:     #1A2230;
+    --border:   #243040;
+    --accent:   #2E72C2;
+    --accent2:  #1B4F8A;
+    --text:     #DDE6F0;
+    --muted:    #6B7F96;
+    --new:      #3FB950;
+    --saved:    #E3B341;
+    --applied:  #58A6FF;
+    --rejected: #F85149;
+    --mono:     'DM Mono', monospace;
+    --sans:     'Sora', sans-serif;
+    --radius:   8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-brand {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+  .topbar-brand span { color: var(--accent); }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .topbar-right .muted { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: var(--mono);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .badge-new      { background: #1a3a22; color: var(--new); border: 1px solid #2a5a32; }
+  .badge-saved    { background: #3a2f10; color: var(--saved); border: 1px solid #5a4a20; }
+  .badge-applied  { background: #0f2a45; color: var(--applied); border: 1px solid #1a4a70; }
+  .badge-rejected { background: #3a1010; color: var(--rejected); border: 1px solid #6a2020; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+</style>
+{% block extra_styles %}{% endblock %}
+</head>
+<body>
+{% block content %}{% endblock %}
+</body>
+</html>
