@@ -137,7 +137,8 @@ def main():
         log.error(f'Init error: {e}', exc_info=True)
         sys.exit(1)
 
-    scheduler = BlockingScheduler(timezone='America/New_York')
+    # Don't specify timezone on Windows - pytz has issues. Use UTC internally.
+    scheduler = BlockingScheduler()
 
     # Scan every N days (default 1)
     scheduler.add_job(
